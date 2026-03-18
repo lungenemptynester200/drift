@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -13,10 +14,23 @@ from drift import __version__
 console = Console()
 
 
+def _configure_logging(verbose: bool = False) -> None:
+    """Set up structured logging for the drift tool."""
+    level = logging.DEBUG if verbose else logging.WARNING
+    logging.basicConfig(
+        format="%(levelname)s [%(name)s] %(message)s",
+        level=level,
+    )
+
+
 @click.group()
 @click.version_option(version=__version__, prog_name="drift")
-def main() -> None:
+@click.option(
+    "-v", "--verbose", is_flag=True, default=False, help="Enable debug logging."
+)
+def main(verbose: bool = False) -> None:
     """Drift — Detect architectural erosion from AI-generated code."""
+    _configure_logging(verbose)
 
 
 @main.command()
@@ -216,17 +230,9 @@ def trend(repo: Path, days: int, config: Path | None) -> None:
 
     cfg = DriftConfig.load(repo, config)
 
-    # Analyze at multiple points in history
-    intervals = min(days // 7, 12)  # Weekly intervals, max 12
-    if intervals < 2:
-        intervals = 2
-
-    console.print(
-        f"[bold]Drift trend over {days} days ({intervals} data points)[/bold]"
-    )
+    console.print(f"[bold]Drift — current state ({days}-day history window)[/bold]")
     console.print()
 
-    # For MVP: just show current score with a note about temporal analysis
     with console.status("[bold blue]Analyzing current state..."):
         analysis = analyze_repo(repo, cfg, since_days=days)
 

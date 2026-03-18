@@ -236,6 +236,21 @@ class PythonFileParser(ast.NodeVisitor):
             line_count=len(self._lines),
         )
 
+    @staticmethod
+    def _walk_excluding_nested(node: ast.AST) -> list[ast.AST]:
+        """Walk AST children but stop descending into nested function/class defs."""
+        results: list[ast.AST] = []
+        queue = list(ast.iter_child_nodes(node))
+        while queue:
+            child = queue.pop()
+            results.append(child)
+            # Don't descend into nested functions/classes — they get their own visit
+            if not isinstance(
+                child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
+                queue.extend(ast.iter_child_nodes(child))
+        return results
+
     # -- Functions ----------------------------------------------------------
 
     def _process_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
@@ -294,7 +309,9 @@ class PythonFileParser(ast.NodeVisitor):
         self.functions.append(info)
 
         # Extract error handling patterns inside this function
-        for child in ast.walk(node):
+        # Walk the AST but skip nested function/class definitions to avoid
+        # double-counting patterns that will be found when visiting those nodes.
+        for child in self._walk_excluding_nested(node):
             if isinstance(child, ast.Try):
                 fp = _fingerprint_try_block(child)
                 self.patterns.append(

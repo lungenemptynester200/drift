@@ -31,10 +31,12 @@ AI_COAUTHOR_MARKERS = [
     "openai",
 ]
 
-# Commit messages dominated by AI tools tend to be formulaic
+# Commit messages dominated by AI tools tend to be formulaic.
+# Require verb + at least two more words to avoid false positives on
+# normal human messages like "Fix typo" or "Add tests".
 AI_MESSAGE_PATTERNS = [
     re.compile(
-        r"^(Add|Update|Fix|Implement|Refactor|Create|Remove) \w+", re.IGNORECASE
+        r"^(Add|Update|Fix|Implement|Refactor|Create|Remove) \w+ \w+", re.IGNORECASE
     ),
 ]
 
@@ -57,11 +59,12 @@ def _detect_ai_attribution(message: str, coauthors: list[str]) -> tuple[bool, fl
 
     # Weak signal: formulaic commit message (common in AI-assisted workflows)
     msg_first_line = message.split("\n")[0].strip()
+    msg_body = message.split("\n", 1)[1].strip() if "\n" in message else ""
     formulaic_match = any(p.match(msg_first_line) for p in AI_MESSAGE_PATTERNS)
 
-    # Very short or very generic messages with formulaic structure
-    if formulaic_match and len(msg_first_line) < 60:
-        return True, 0.3
+    # Formulaic subject with no body and short length — likely AI-generated
+    if formulaic_match and len(msg_first_line) < 60 and not msg_body:
+        return True, 0.25
 
     return False, 0.0
 

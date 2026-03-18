@@ -7,6 +7,7 @@ module, solving its local task correctly but weakening global cohesion.
 
 from __future__ import annotations
 
+import datetime
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -22,14 +23,31 @@ from drift.models import (
 from drift.signals.base import BaseSignal
 
 
-def _module_imports(parse_results: list[ParseResult]) -> dict[Path, set[str]]:
-    """Map each module directory to the set of external modules it imports."""
+def _module_imports(
+    parse_results: list[ParseResult],
+    file_histories: dict[str, FileHistory],
+    cutoff: datetime.datetime,
+) -> dict[Path, set[str]]:
+    """Map each module directory to the set of external modules it imports.
+
+    Only includes files that were last modified BEFORE the cutoff date,
+    so the baseline reflects the established state of the codebase.
+    """
     module_imports: dict[Path, set[str]] = defaultdict(set)
     for pr in parse_results:
+        # Exclude recently-modified files from baseline
+        fpath_str = pr.file_path.as_posix()
+        history = file_histories.get(fpath_str)
+        if history and history.last_modified:
+            last_mod = history.last_modified
+            if hasattr(last_mod, "astimezone"):
+                last_mod = last_mod.astimezone(datetime.timezone.utc)
+            if last_mod >= cutoff:
+                continue
+
         module = pr.file_path.parent
         for imp in pr.imports:
             if not imp.is_relative:
-                # Use top-level package name
                 top = imp.imported_module.split(".")[0]
                 module_imports[module].add(top)
     return module_imports
@@ -43,8 +61,6 @@ def _find_novel_imports(
 ) -> list[tuple[ImportInfo, Path, str]]:
     """Find imports in recent files that introduce novel dependencies to their module."""
     novel: list[tuple[ImportInfo, Path, str]] = []
-
-    import datetime
 
     cutoff = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
         days=recency_days
@@ -92,11 +108,17 @@ class SystemMisalignmentSignal(BaseSignal):
         file_histories: dict[str, FileHistory],
         config: Any,
     ) -> list[Finding]:
-        # Build baseline of established imports per module
-        baseline = _module_imports(parse_results)
+        # Build baseline of established imports per module (excluding recent files)
+        recency_days = 14
+        cutoff = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+            days=recency_days
+        )
+        baseline = _module_imports(parse_results, file_histories, cutoff)
 
         # Find novel imports in recently-modified files
-        novel = _find_novel_imports(parse_results, baseline, file_histories)
+        novel = _find_novel_imports(
+            parse_results, baseline, file_histories, recency_days=recency_days
+        )
 
         findings: list[Finding] = []
         # Group by module

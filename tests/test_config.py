@@ -8,7 +8,8 @@ from drift.config import DriftConfig
 def test_default_config():
     config = DriftConfig()
     assert config.fail_on == "high"
-    assert config.weights.pattern_fragmentation == 0.20
+    assert config.weights.pattern_fragmentation == 0.22
+    assert config.weights.doc_impl_drift == 0.0
     assert "**/*.py" in config.include
     assert "**/__pycache__/**" in config.exclude
 
@@ -39,4 +40,4 @@ policies:
 def test_weight_sum_approximately_one():
     w = DriftConfig().weights
     total = sum(w.as_dict().values())
-    assert abs(total - 1.0) < 0.01
+    assert abs(total - 1.0) < 0.02

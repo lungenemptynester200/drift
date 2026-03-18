@@ -26,11 +26,20 @@ from drift.signals.base import BaseSignal
 SIMILARITY_THRESHOLD = 0.80
 
 
-def _function_body_text(func: FunctionInfo, repo_path: Path) -> str:
-    """Read the function body from disk. Returns empty string on failure."""
+def _function_body_text(
+    func: FunctionInfo, repo_path: Path, _cache: dict[Path, list[str]] | None = None
+) -> str:
+    """Read the function body from disk. Uses an optional line cache to avoid redundant I/O."""
     try:
         full = repo_path / func.file_path
-        lines = full.read_text(encoding="utf-8", errors="replace").splitlines()
+        if _cache is not None:
+            if full not in _cache:
+                _cache[full] = full.read_text(
+                    encoding="utf-8", errors="replace"
+                ).splitlines()
+            lines = _cache[full]
+        else:
+            lines = full.read_text(encoding="utf-8", errors="replace").splitlines()
         return "\n".join(lines[func.start_line - 1 : func.end_line])
     except Exception:
         return ""
@@ -116,6 +125,7 @@ class MutantDuplicateSignal(BaseSignal):
         # Near-duplicate detection via body text comparison
         # Sample up to 500 functions to keep analysis time bounded
         sample = functions[:500] if len(functions) > 500 else functions
+        file_cache: dict[Path, list[str]] = {}
 
         for a, b in combinations(sample, 2):
             key = tuple(sorted([f"{a.file_path}:{a.name}", f"{b.file_path}:{b.name}"]))
@@ -128,8 +138,8 @@ class MutantDuplicateSignal(BaseSignal):
                 if ratio < 0.5:
                     continue
 
-            text_a = _function_body_text(a, self._repo_path)
-            text_b = _function_body_text(b, self._repo_path)
+            text_a = _function_body_text(a, self._repo_path, file_cache)
+            text_b = _function_body_text(b, self._repo_path, file_cache)
 
             sim = _structural_similarity(text_a, text_b)
             if sim >= SIMILARITY_THRESHOLD and sim < 1.0:

@@ -155,6 +155,24 @@ class FileHistory:
 
 
 # ---------------------------------------------------------------------------
+# Shared Helpers
+# ---------------------------------------------------------------------------
+
+
+def severity_for_score(score: float) -> Severity:
+    """Map a 0.0-1.0 drift score to a severity level."""
+    if score >= 0.8:
+        return Severity.CRITICAL
+    if score >= 0.6:
+        return Severity.HIGH
+    if score >= 0.4:
+        return Severity.MEDIUM
+    if score >= 0.2:
+        return Severity.LOW
+    return Severity.INFO
+
+
+# ---------------------------------------------------------------------------
 # Analysis Models
 # ---------------------------------------------------------------------------
 
@@ -192,15 +210,7 @@ class ModuleScore:
 
     @property
     def severity(self) -> Severity:
-        if self.drift_score >= 0.8:
-            return Severity.CRITICAL
-        if self.drift_score >= 0.6:
-            return Severity.HIGH
-        if self.drift_score >= 0.4:
-            return Severity.MEDIUM
-        if self.drift_score >= 0.2:
-            return Severity.LOW
-        return Severity.INFO
+        return severity_for_score(self.drift_score)
 
 
 @dataclass
@@ -222,15 +232,7 @@ class RepoAnalysis:
 
     @property
     def severity(self) -> Severity:
-        if self.drift_score >= 0.8:
-            return Severity.CRITICAL
-        if self.drift_score >= 0.6:
-            return Severity.HIGH
-        if self.drift_score >= 0.4:
-            return Severity.MEDIUM
-        if self.drift_score >= 0.2:
-            return Severity.LOW
-        return Severity.INFO
+        return severity_for_score(self.drift_score)
 
     def findings_by_severity(self, severity: Severity) -> list[Finding]:
         return [f for f in self.findings if f.severity == severity]

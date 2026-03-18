@@ -29,14 +29,18 @@ class PolicyConfig(BaseModel):
 
 
 class SignalWeights(BaseModel):
-    """Weights for each detection signal in composite scoring."""
+    """Weights for each detection signal in composite scoring.
 
-    pattern_fragmentation: float = 0.20
-    architecture_violation: float = 0.20
-    mutant_duplicate: float = 0.15
-    explainability_deficit: float = 0.10
-    doc_impl_drift: float = 0.10
-    temporal_volatility: float = 0.15
+    Weights are normalised internally — they don't need to sum to 1.0,
+    but a warning is emitted if they deviate significantly.
+    """
+
+    pattern_fragmentation: float = 0.22
+    architecture_violation: float = 0.22
+    mutant_duplicate: float = 0.17
+    explainability_deficit: float = 0.12
+    doc_impl_drift: float = 0.00  # Phase 2 stub — zero weight until implemented
+    temporal_volatility: float = 0.17
     system_misalignment: float = 0.10
 
     def as_dict(self) -> dict[str, float]:

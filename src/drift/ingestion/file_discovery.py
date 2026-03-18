@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import fnmatch
+import logging
 from pathlib import Path
 
 from drift.models import FileInfo
+
+logger = logging.getLogger("drift")
 
 LANGUAGE_MAP: dict[str, str] = {
     ".py": "python",
@@ -51,9 +54,16 @@ def discover_files(
     files: list[FileInfo] = []
     repo_path = repo_path.resolve()
 
+    # Max file size to analyse (5 MB) — skip generated/vendored giants
+    max_bytes = 5 * 1024 * 1024
+
     for pattern in include:
         for match in repo_path.glob(pattern):
             if not match.is_file():
+                continue
+
+            # Skip symlinks to avoid loops and double-counting
+            if match.is_symlink():
                 continue
 
             rel = match.relative_to(repo_path).as_posix()
@@ -66,10 +76,19 @@ def discover_files(
                 continue
 
             stat = match.stat()
-            content = match.read_text(encoding="utf-8", errors="replace")
-            line_count = content.count("\n") + (
-                1 if content and not content.endswith("\n") else 0
-            )
+            if stat.st_size > max_bytes:
+                logger.debug(
+                    "Skipping oversized file (%d bytes): %s", stat.st_size, rel
+                )
+                continue
+
+            # Count lines without reading entire file into memory
+            line_count = 0
+            try:
+                with open(match, "rb") as fh:
+                    line_count = sum(1 for _ in fh)
+            except OSError:
+                pass
 
             files.append(
                 FileInfo(

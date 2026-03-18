@@ -136,8 +136,15 @@ def analyze_diff(
     """Analyze only files changed since a given git ref.
 
     Useful for CI — only checks files in the current diff.
+    Runs signals only on changed files rather than the entire repo.
     """
+    import logging
+
+    logger = logging.getLogger("drift")
     repo_path = repo_path.resolve()
+
+    if config is None:
+        config = DriftConfig.load(repo_path)
 
     # Get changed files from git
     changed_files: list[str] = []
@@ -151,8 +158,12 @@ def analyze_diff(
                 changed_files.append(diff_item.a_path)
             if diff_item.b_path and diff_item.b_path != diff_item.a_path:
                 changed_files.append(diff_item.b_path)
-    except Exception:
-        # Fallback: analyze everything
+    except Exception as exc:
+        logger.warning(
+            "Could not resolve diff ref '%s': %s. Falling back to full analysis.",
+            diff_ref,
+            exc,
+        )
         return analyze_repo(repo_path, config)
 
     if not changed_files:
@@ -162,24 +173,69 @@ def analyze_diff(
             drift_score=0.0,
         )
 
-    # Run full analysis but filter to changed files
-    analysis = analyze_repo(repo_path, config)
+    # Run targeted analysis on changed files only
+    start = time.monotonic()
 
+    # --- 1. File discovery (only changed files) ---
+    all_files = discover_files(
+        repo_path,
+        include=config.include,
+        exclude=config.exclude,
+    )
     changed_set = set(changed_files)
-    filtered_findings = [
-        f
-        for f in analysis.findings
-        if f.file_path and f.file_path.as_posix() in changed_set
+    files = [f for f in all_files if f.path.as_posix() in changed_set]
+
+    if not files:
+        return RepoAnalysis(
+            repo_path=repo_path,
+            analyzed_at=datetime.datetime.now(tz=datetime.timezone.utc),
+            drift_score=0.0,
+        )
+
+    # --- 2. AST parsing ---
+    parse_results: list[ParseResult] = []
+    for finfo in files:
+        result = parse_file(finfo.path, repo_path, finfo.language)
+        parse_results.append(result)
+
+    # --- 3. Git history ---
+    known_files = {f.path.as_posix() for f in files}
+    commits = parse_git_history(repo_path, since_days=90, file_filter=known_files)
+    file_histories = build_file_histories(commits, known_files=known_files)
+
+    # --- 4. Run signals ---
+    signals = [
+        PatternFragmentationSignal(),
+        ArchitectureViolationSignal(),
+        MutantDuplicateSignal(repo_path),
+        ExplainabilityDeficitSignal(),
+        TemporalVolatilitySignal(),
+        DocImplDriftSignal(),
+        SystemMisalignmentSignal(),
     ]
 
-    if config is None:
-        config = DriftConfig.load(repo_path)
+    all_findings: list[Finding] = []
+    for signal in signals:
+        findings = signal.analyze(parse_results, file_histories, config)
+        all_findings.extend(findings)
 
-    signal_scores = compute_signal_scores(filtered_findings)
+    # --- 5. Scoring ---
+    signal_scores = compute_signal_scores(all_findings)
     score = composite_score(signal_scores, config.weights)
+    module_scores = compute_module_scores(all_findings, config.weights)
 
-    analysis.findings = filtered_findings
-    analysis.drift_score = score
-    analysis.module_scores = compute_module_scores(filtered_findings, config.weights)
+    duration = time.monotonic() - start
 
-    return analysis
+    return RepoAnalysis(
+        repo_path=repo_path,
+        analyzed_at=datetime.datetime.now(tz=datetime.timezone.utc),
+        drift_score=score,
+        module_scores=module_scores,
+        findings=all_findings,
+        total_files=len(files),
+        total_functions=sum(len(pr.functions) for pr in parse_results),
+        ai_attributed_ratio=round(
+            sum(1 for c in commits if c.is_ai_attributed) / max(1, len(commits)), 3
+        ),
+        analysis_duration_seconds=round(duration, 2),
+    )

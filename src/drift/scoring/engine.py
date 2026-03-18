@@ -15,6 +15,7 @@ from drift.models import (
     ModuleScore,
     Severity,
     SignalType,
+    severity_for_score,
 )
 
 _SIGNAL_WEIGHT_KEYS: dict[SignalType, str] = {
@@ -28,16 +29,8 @@ _SIGNAL_WEIGHT_KEYS: dict[SignalType, str] = {
 }
 
 
-def _severity_for_score(score: float) -> Severity:
-    if score >= 0.8:
-        return Severity.CRITICAL
-    if score >= 0.6:
-        return Severity.HIGH
-    if score >= 0.4:
-        return Severity.MEDIUM
-    if score >= 0.2:
-        return Severity.LOW
-    return Severity.INFO
+# Re-export for backwards compat; canonical implementation in models.py
+_severity_for_score = severity_for_score
 
 
 def compute_signal_scores(
