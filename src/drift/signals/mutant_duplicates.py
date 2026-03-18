@@ -123,20 +123,32 @@ class MutantDuplicateSignal(BaseSignal):
                     )
 
         # Near-duplicate detection via body text comparison
-        # Sample up to 500 functions to keep analysis time bounded
+        # Group functions by LOC bucket (±30%) to reduce comparison pairs
         sample = functions[:500] if len(functions) > 500 else functions
         file_cache: dict[Path, list[str]] = {}
 
-        for a, b in combinations(sample, 2):
+        # Build LOC buckets: each function goes into a bucket keyed by (loc // 5)
+        # Then only compare functions in the same or adjacent buckets.
+        loc_buckets: dict[int, list[FunctionInfo]] = {}
+        for fn in sample:
+            bucket = fn.loc // 5
+            loc_buckets.setdefault(bucket, []).append(fn)
+
+        pairs_to_compare: list[tuple[FunctionInfo, FunctionInfo]] = []
+        for bucket_key, bucket_fns in loc_buckets.items():
+            # Intra-bucket pairs
+            for a, b in combinations(bucket_fns, 2):
+                pairs_to_compare.append((a, b))
+            # Adjacent bucket pairs (bucket_key + 1 only, to avoid double-counting)
+            if (bucket_key + 1) in loc_buckets:
+                for a in bucket_fns:
+                    for b in loc_buckets[bucket_key + 1]:
+                        pairs_to_compare.append((a, b))
+
+        for a, b in pairs_to_compare:
             key = tuple(sorted([f"{a.file_path}:{a.name}", f"{b.file_path}:{b.name}"]))
             if key in checked:
                 continue
-
-            # Quick filter: similar line count
-            if a.loc > 0 and b.loc > 0:
-                ratio = min(a.loc, b.loc) / max(a.loc, b.loc)
-                if ratio < 0.5:
-                    continue
 
             text_a = _function_body_text(a, self._repo_path, file_cache)
             text_b = _function_body_text(b, self._repo_path, file_cache)

@@ -78,6 +78,38 @@ def _is_defect_correlated(message: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _bulk_commit_files(repo: "gitmodule.Repo", since_iso: str) -> dict[str, list[str]]:
+    """Fetch changed-file lists for all commits since *since_iso* in one subprocess.
+
+    Returns a mapping of abbreviated commit hash → list of changed file paths.
+    This replaces the per-commit ``commit.stats.files`` call which spawns a
+    separate ``git diff-tree`` subprocess for every single commit.
+    """
+    try:
+        raw: str = repo.git.log(
+            "--since",
+            since_iso,
+            "--name-only",
+            "--pretty=format:%H",
+        )
+    except Exception:
+        return {}
+
+    result: dict[str, list[str]] = {}
+    current_hash: str | None = None
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # 40-char hex → commit hash
+        if len(line) == 40 and all(c in "0123456789abcdef" for c in line):
+            current_hash = line[:12]
+            result.setdefault(current_hash, [])
+        elif current_hash is not None:
+            result[current_hash].append(line)
+    return result
+
+
 def parse_git_history(
     repo_path: Path,
     since_days: int = 90,
@@ -97,20 +129,22 @@ def parse_git_history(
     since_date = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
         days=since_days
     )
+    since_iso = since_date.isoformat()
+
+    # Fetch all changed files in a single subprocess call
+    bulk_files = _bulk_commit_files(repo, since_iso)
 
     commits: list[CommitInfo] = []
 
     try:
-        commit_iter = repo.iter_commits(since=since_date.isoformat())
+        commit_iter = repo.iter_commits(since=since_iso)
     except ValueError:
         # Empty repository (no commits yet)
         return []
 
     for commit in commit_iter:
-        try:
-            files = list(commit.stats.files.keys())
-        except Exception:
-            files = []
+        short_hash = commit.hexsha[:12]
+        files = bulk_files.get(short_hash, [])
 
         if file_filter and not any(f in file_filter for f in files):
             continue
@@ -121,14 +155,14 @@ def parse_git_history(
         is_ai, ai_conf = _detect_ai_attribution(commit.message, coauthors)
 
         info = CommitInfo(
-            hash=commit.hexsha[:12],
+            hash=short_hash,
             author=commit.author.name or "unknown",
             email=commit.author.email or "",
             timestamp=commit.authored_datetime,
             message=commit.message.strip(),
             files_changed=files,
-            insertions=commit.stats.total.get("insertions", 0),
-            deletions=commit.stats.total.get("deletions", 0),
+            insertions=0,
+            deletions=0,
             is_ai_attributed=is_ai,
             ai_confidence=ai_conf,
             coauthors=coauthors,

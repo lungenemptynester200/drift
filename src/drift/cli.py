@@ -62,13 +62,35 @@ def analyze(
     config: Path | None,
 ) -> None:
     """Analyze a repository for architectural drift."""
+    from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
+
     from drift.analyzer import analyze_repo
     from drift.config import DriftConfig
 
     cfg = DriftConfig.load(repo, config)
 
-    with console.status("[bold blue]Analyzing repository..."):
-        analysis = analyze_repo(repo, cfg, since_days=since, target_path=path)
+    progress = Progress(
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        console=console,
+    )
+
+    task_id = None
+
+    def _on_progress(phase: str, current: int, total: int) -> None:
+        nonlocal task_id
+        if task_id is not None:
+            progress.update(task_id, completed=total, total=total)
+            progress.remove_task(task_id)
+        task_id = progress.add_task(phase, total=max(total, 1), completed=current)
+
+    with progress:
+        analysis = analyze_repo(
+            repo, cfg, since_days=since, target_path=path, on_progress=_on_progress
+        )
+        if task_id is not None:
+            progress.update(task_id, completed=progress.tasks[task_id].total)
 
     if output_format == "json":
         from drift.output.json_output import analysis_to_json

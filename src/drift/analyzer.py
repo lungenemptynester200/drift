@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import time
 from pathlib import Path
+from typing import Callable
 
 from drift.config import DriftConfig
 from drift.ingestion.ast_parser import parse_file
@@ -32,12 +33,16 @@ from drift.signals.pattern_fragmentation import PatternFragmentationSignal
 from drift.signals.system_misalignment import SystemMisalignmentSignal
 from drift.signals.temporal_volatility import TemporalVolatilitySignal
 
+# Progress callback: (phase_name, current, total)
+ProgressCallback = Callable[[str, int, int], None]
+
 
 def analyze_repo(
     repo_path: Path,
     config: DriftConfig | None = None,
     since_days: int = 90,
     target_path: str | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> RepoAnalysis:
     """Run full drift analysis on a repository.
 
@@ -46,6 +51,7 @@ def analyze_repo(
         config: Drift configuration. Loaded from drift.yaml if None.
         since_days: How many days of git history to analyze.
         target_path: Optional subdirectory to restrict analysis to.
+        on_progress: Optional callback (phase, current, total) for progress display.
 
     Returns:
         Complete RepoAnalysis with scores, findings, and module breakdowns.
@@ -56,7 +62,12 @@ def analyze_repo(
     if config is None:
         config = DriftConfig.load(repo_path)
 
+    def _progress(phase: str, current: int, total: int) -> None:
+        if on_progress:
+            on_progress(phase, current, total)
+
     # --- 1. File discovery ---
+    _progress("Discovering files", 0, 0)
     files = discover_files(
         repo_path,
         include=config.include,
@@ -69,11 +80,14 @@ def analyze_repo(
 
     # --- 2. AST parsing ---
     parse_results: list[ParseResult] = []
-    for finfo in files:
+    total_files = len(files)
+    for i, finfo in enumerate(files):
+        _progress("Parsing files", i + 1, total_files)
         result = parse_file(finfo.path, repo_path, finfo.language)
         parse_results.append(result)
 
     # --- 3. Git history ---
+    _progress("Analyzing git history", 0, 0)
     known_files = {f.path.as_posix() for f in files}
     commits = parse_git_history(
         repo_path, since_days=since_days, file_filter=known_files
@@ -92,7 +106,9 @@ def analyze_repo(
     ]
 
     all_findings: list[Finding] = []
-    for signal in signals:
+    total_signals = len(signals)
+    for i, signal in enumerate(signals):
+        _progress(f"Signal: {signal.name}", i + 1, total_signals)
         findings = signal.analyze(parse_results, file_histories, config)
         all_findings.extend(findings)
 

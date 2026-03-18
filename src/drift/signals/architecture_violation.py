@@ -223,15 +223,18 @@ class ArchitectureViolationSignal(BaseSignal):
     def _check_circular_deps(self, graph: nx.DiGraph) -> list[Finding]:
         findings: list[Finding] = []
 
-        try:
-            cycles = list(nx.simple_cycles(graph))
-        except nx.NetworkXError:
+        # simple_cycles is exponential on dense graphs. Use a bounded approach:
+        # find strongly connected components first (linear), then only enumerate
+        # cycles within small SCCs.
+        sccs = [s for s in nx.strongly_connected_components(graph) if len(s) > 1]
+        if not sccs:
             return findings
 
-        for cycle in cycles[:5]:  # Limit to first 5
-            if len(cycle) < 2:
-                continue
-
+        reported = 0
+        for scc in sorted(sccs, key=len, reverse=True):
+            if reported >= 5:
+                break
+            cycle = sorted(scc)  # deterministic ordering
             cycle_str = " → ".join(Path(p).name for p in cycle)
             findings.append(
                 Finding(
@@ -245,6 +248,7 @@ class ArchitectureViolationSignal(BaseSignal):
                     metadata={"cycle": cycle},
                 )
             )
+            reported += 1
 
         return findings
 
