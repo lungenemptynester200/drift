@@ -20,7 +20,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 
 def _module_imports(
@@ -89,6 +89,7 @@ def _find_novel_imports(
     return novel
 
 
+@register_signal
 class SystemMisalignmentSignal(BaseSignal):
     """Detect changes that introduce foreign patterns into existing modules."""
 

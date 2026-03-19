@@ -10,6 +10,14 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# Import all signal modules so @register_signal decorators execute.
+import drift.signals.architecture_violation  # noqa: F401
+import drift.signals.doc_impl_drift  # noqa: F401
+import drift.signals.explainability_deficit  # noqa: F401
+import drift.signals.mutant_duplicates  # noqa: F401
+import drift.signals.pattern_fragmentation  # noqa: F401
+import drift.signals.system_misalignment  # noqa: F401
+import drift.signals.temporal_volatility  # noqa: F401
 from drift.cache import ParseCache
 from drift.config import DriftConfig
 from drift.ingestion.ast_parser import parse_file
@@ -27,13 +35,7 @@ from drift.scoring.engine import (
     compute_module_scores,
     compute_signal_scores,
 )
-from drift.signals.architecture_violation import ArchitectureViolationSignal
-from drift.signals.doc_impl_drift import DocImplDriftSignal
-from drift.signals.explainability_deficit import ExplainabilityDeficitSignal
-from drift.signals.mutant_duplicates import MutantDuplicateSignal
-from drift.signals.pattern_fragmentation import PatternFragmentationSignal
-from drift.signals.system_misalignment import SystemMisalignmentSignal
-from drift.signals.temporal_volatility import TemporalVolatilitySignal
+from drift.signals.base import AnalysisContext, create_signals
 
 # Progress callback: (phase_name, current, total)
 ProgressCallback = Callable[[str, int, int], None]
@@ -155,15 +157,13 @@ def analyze_repo(
         commits, file_histories = git_future.result()
 
     _progress("Analyzing git history", 0, 0)
-    signals = [
-        PatternFragmentationSignal(),
-        ArchitectureViolationSignal(),
-        MutantDuplicateSignal(repo_path),
-        ExplainabilityDeficitSignal(),
-        TemporalVolatilitySignal(),
-        SystemMisalignmentSignal(),
-        DocImplDriftSignal(repo_path),
-    ]
+    ctx = AnalysisContext(
+        repo_path=repo_path,
+        config=config,
+        parse_results=parse_results,
+        file_histories=file_histories,
+    )
+    signals = create_signals(ctx)
 
     all_findings: list[Finding] = []
     total_signals = len(signals)
@@ -208,6 +208,8 @@ def analyze_repo(
         total_functions=total_funcs,
         ai_attributed_ratio=round(ai_ratio, 3),
         analysis_duration_seconds=round(duration, 2),
+        commits=commits,
+        file_histories=file_histories,
     )
 
 
@@ -289,15 +291,13 @@ def analyze_diff(
         commits, file_histories = git_future.result()
 
     # --- 4. Run signals ---
-    signals = [
-        PatternFragmentationSignal(),
-        ArchitectureViolationSignal(),
-        MutantDuplicateSignal(repo_path),
-        ExplainabilityDeficitSignal(),
-        TemporalVolatilitySignal(),
-        SystemMisalignmentSignal(),
-        DocImplDriftSignal(repo_path),
-    ]
+    ctx = AnalysisContext(
+        repo_path=repo_path,
+        config=config,
+        parse_results=parse_results,
+        file_histories=file_histories,
+    )
+    signals = create_signals(ctx)
 
     all_findings: list[Finding] = []
     for signal in signals:
@@ -323,4 +323,6 @@ def analyze_diff(
             sum(1 for c in commits if c.is_ai_attributed) / max(1, len(commits)), 3
         ),
         analysis_duration_seconds=round(duration, 2),
+        commits=commits,
+        file_histories=file_histories,
     )

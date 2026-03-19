@@ -269,8 +269,6 @@ def timeline(repo: Path, since: int, config: Path | None) -> None:
     """Show when and why drift began in each module (root-cause analysis)."""
     from drift.analyzer import analyze_repo
     from drift.config import DriftConfig
-    from drift.ingestion.file_discovery import discover_files
-    from drift.ingestion.git_history import build_file_histories, parse_git_history
     from drift.output.rich_output import render_timeline
     from drift.timeline import build_timeline
 
@@ -279,15 +277,12 @@ def timeline(repo: Path, since: int, config: Path | None) -> None:
     with console.status("[bold blue]Analyzing repository..."):
         analysis = analyze_repo(repo, cfg, since_days=since)
 
-    # Reconstruct commits and file histories for timeline
+    # Reuse commits and file_histories from analysis (no second git pass)
     with console.status("[bold blue]Building timeline..."):
-        files = discover_files(repo.resolve(), include=cfg.include, exclude=cfg.exclude)
-        known_files = {f.path.as_posix() for f in files}
-        commits = parse_git_history(repo.resolve(), since_days=since, file_filter=known_files)
-        file_histories = build_file_histories(commits, known_files=known_files)
-
         module_scores = {ms.path.as_posix(): ms.drift_score for ms in analysis.module_scores}
-        tl = build_timeline(commits, file_histories, analysis.findings, module_scores)
+        tl = build_timeline(
+            analysis.commits, analysis.file_histories, analysis.findings, module_scores
+        )
 
     console.print()
     console.print(f"[bold]Drift Timeline — {repo.resolve().name}[/bold]  ({since}-day history)")

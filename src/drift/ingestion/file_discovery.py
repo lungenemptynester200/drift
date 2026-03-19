@@ -69,6 +69,8 @@ def discover_files(
 
     # Pre-deuplicate: track seen paths during enumeration
     seen: set[str] = set()
+    supported = _detect_supported_languages()
+    skipped_langs: dict[str, int] = {}
 
     for pattern in include:
         for match in repo_path.glob(pattern):
@@ -90,7 +92,10 @@ def discover_files(
                 continue
 
             lang = detect_language(match)
-            if lang is None or lang not in _detect_supported_languages():
+            if lang is None:
+                continue
+            if lang not in supported:
+                skipped_langs[lang] = skipped_langs.get(lang, 0) + 1
                 continue
 
             stat = match.stat()
@@ -110,5 +115,14 @@ def discover_files(
                     line_count=line_count,
                 )
             )
+
+    if skipped_langs:
+        summary = ", ".join(f"{lang} ({n})" for lang, n in sorted(skipped_langs.items()))
+        logger.warning(
+            "Skipped %d file(s) with unsupported languages: %s. "
+            "Install tree-sitter for TypeScript/TSX support.",
+            sum(skipped_langs.values()),
+            summary,
+        )
 
     return sorted(files, key=lambda f: f.path.as_posix())

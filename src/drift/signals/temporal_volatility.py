@@ -17,7 +17,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 
 def _z_score(value: float, mean: float, std: float) -> float:
@@ -36,6 +36,7 @@ def _shannon_entropy(counts: list[int]) -> float:
     return -sum(p * math.log2(p) for p in probs)
 
 
+@register_signal
 class TemporalVolatilitySignal(BaseSignal):
     """Detect files with anomalous churn and defect correlation."""
 
@@ -86,9 +87,7 @@ class TemporalVolatilitySignal(BaseSignal):
         for history in histories:
             freq_z = _z_score(history.change_frequency_30d, freq_mean, freq_std)
             author_z = _z_score(float(history.unique_authors), author_mean, author_std)
-            defect_z = _z_score(
-                float(history.defect_correlated_commits), defect_mean, defect_std
-            )
+            defect_z = _z_score(float(history.defect_correlated_commits), defect_mean, defect_std)
 
             # Composite volatility: any dimension > z_threshold is notable
             max_z = max(freq_z, author_z, defect_z)
@@ -123,8 +122,7 @@ class TemporalVolatilitySignal(BaseSignal):
                 )
             if author_z > z_threshold:
                 desc_parts.append(
-                    f"{history.unique_authors} unique authors "
-                    f"({author_z:.1f}σ above mean)"
+                    f"{history.unique_authors} unique authors ({author_z:.1f}σ above mean)"
                 )
             if defect_z > z_threshold:
                 desc_parts.append(

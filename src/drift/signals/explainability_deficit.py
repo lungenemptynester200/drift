@@ -16,7 +16,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 # Defaults (overridden by config.thresholds)
 HIGH_COMPLEXITY = 10
@@ -45,6 +45,7 @@ def _explanation_score(func: FunctionInfo, has_test: bool) -> float:
     return min(1.0, evidence / max_evidence)
 
 
+@register_signal
 class ExplainabilityDeficitSignal(BaseSignal):
     """Detect complex functions lacking documentation and tests."""
 

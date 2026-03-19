@@ -22,7 +22,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 
 def _module_for_path(path: Path) -> str:
@@ -95,6 +95,7 @@ def _infer_layer(path: Path) -> int | None:
     return None
 
 
+@register_signal
 class ArchitectureViolationSignal(BaseSignal):
     """Detect imports that violate architectural layer boundaries."""
 

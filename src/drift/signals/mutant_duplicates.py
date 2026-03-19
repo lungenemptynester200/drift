@@ -26,7 +26,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 # Threshold above which two functions are considered near-duplicates
 SIMILARITY_THRESHOLD = 0.80
@@ -120,6 +120,7 @@ def _jaccard(a: list[tuple[str, ...]], b: list[tuple[str, ...]]) -> float:
     return intersection / union if union else 0.0
 
 
+@register_signal
 class MutantDuplicateSignal(BaseSignal):
     """Detect near-duplicate functions that diverge in subtle ways."""
 

@@ -221,13 +221,13 @@ class RepoAnalysis:
     drift_score: float
     module_scores: list[ModuleScore] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
-    pattern_catalog: dict[PatternCategory, list[PatternInstance]] = field(
-        default_factory=dict
-    )
+    pattern_catalog: dict[PatternCategory, list[PatternInstance]] = field(default_factory=dict)
     total_files: int = 0
     total_functions: int = 0
     ai_attributed_ratio: float = 0.0
     analysis_duration_seconds: float = 0.0
+    commits: list[CommitInfo] = field(default_factory=list)
+    file_histories: dict[str, FileHistory] = field(default_factory=dict)
 
     @property
     def severity(self) -> Severity:

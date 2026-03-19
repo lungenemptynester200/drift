@@ -15,12 +15,13 @@ from pathlib import Path
 
 from drift.config import DriftConfig
 from drift.models import FileHistory, Finding, ParseResult, Severity, SignalType
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 # Regex to extract top-level directory names referenced in markdown
 _DIR_REF_RE = re.compile(r"`?(\w[\w\-]*)/" r"`?", re.MULTILINE)
 
 
+@register_signal
 class DocImplDriftSignal(BaseSignal):
     """Detect drift between documentation claims and code reality.
 

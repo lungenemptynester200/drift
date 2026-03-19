@@ -22,7 +22,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
-from drift.signals.base import BaseSignal
+from drift.signals.base import BaseSignal, register_signal
 
 
 def _variant_key(fingerprint: dict[str, Any]) -> str:
@@ -57,6 +57,7 @@ def _canonical_variant(variants: dict[str, list[PatternInstance]]) -> str:
     return max(variants, key=lambda k: len(variants[k]))
 
 
+@register_signal
 class PatternFragmentationSignal(BaseSignal):
     """Detect multiple incompatible pattern variants within architectural modules."""
 

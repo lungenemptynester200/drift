@@ -3,9 +3,25 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from drift.config import DriftConfig
 from drift.models import FileHistory, Finding, ParseResult, SignalType
+
+
+@dataclass
+class AnalysisContext:
+    """Shared context passed to all signals during analysis.
+
+    Provides standardised access to repo-level data so that signals
+    don't need heterogeneous constructor arguments.
+    """
+
+    repo_path: Path
+    config: DriftConfig
+    parse_results: list[ParseResult] = field(default_factory=list)
+    file_histories: dict[str, FileHistory] = field(default_factory=dict)
 
 
 class BaseSignal(ABC):
@@ -33,3 +49,40 @@ class BaseSignal(ABC):
     ) -> list[Finding]:
         """Run this signal's detection logic and return findings."""
         ...
+
+
+# ---------------------------------------------------------------------------
+# Signal registry
+# ---------------------------------------------------------------------------
+
+_SIGNAL_REGISTRY: list[type[BaseSignal]] = []
+
+
+def register_signal(cls: type[BaseSignal]) -> type[BaseSignal]:
+    """Class decorator that registers a signal for automatic discovery."""
+    _SIGNAL_REGISTRY.append(cls)
+    return cls
+
+
+def create_signals(ctx: AnalysisContext) -> list[BaseSignal]:
+    """Instantiate all registered signals.
+
+    Signals whose ``__init__`` accepts a ``repo_path`` keyword argument
+    receive it from the context automatically.
+    """
+    import inspect
+
+    signals: list[BaseSignal] = []
+    for cls in _SIGNAL_REGISTRY:
+        sig = inspect.signature(cls.__init__)
+        params = set(sig.parameters.keys()) - {"self"}
+        if "repo_path" in params:
+            signals.append(cls(repo_path=ctx.repo_path))
+        else:
+            signals.append(cls())
+    return signals
+
+
+def registered_signals() -> list[type[BaseSignal]]:
+    """Return a copy of the current signal registry (for testing)."""
+    return list(_SIGNAL_REGISTRY)
