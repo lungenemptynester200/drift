@@ -1,0 +1,33 @@
+# Example: Add drift to your repository's CI pipeline.
+# Copy this file to .github/workflows/drift.yml in your project.
+#
+# IMPORTANT: checkout with fetch-depth: 0 so that drift can read
+# git history for temporal signals (TVS, SMS).
+
+name: Drift
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  drift:
+    name: Architectural Erosion Check
+    runs-on: ubuntu-latest
+
+    # Required when upload-sarif is true so findings appear in Code Scanning.
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full git history for temporal signals
+
+      - uses: sauremilk/drift@v1
+        with:
+          fail-on: high # Fail CI on high/critical findings
+          upload-sarif: "true" # Inline PR annotations via GitHub Code Scanning

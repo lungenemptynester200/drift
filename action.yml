@@ -1,0 +1,101 @@
+name: "Drift — Architectural Erosion Check"
+description: "Detect architectural erosion from AI-generated code. Measures pattern fragmentation, architecture violations, mutant duplicates, and more."
+
+branding:
+  icon: "activity"
+  color: "orange"
+
+inputs:
+  repo:
+    description: "Path to the repository root to analyse."
+    required: false
+    default: "."
+
+  fail-on:
+    description: "Exit 1 if any finding is at or above this severity: critical | high | medium | low"
+    required: false
+    default: "high"
+
+  since:
+    description: "Days of git history to consider for temporal signals."
+    required: false
+    default: "90"
+
+  format:
+    description: "Terminal output format: rich | json | sarif"
+    required: false
+    default: "rich"
+
+  config:
+    description: "Path to a drift.yaml config file (optional)."
+    required: false
+    default: ""
+
+  upload-sarif:
+    description: >
+      Upload SARIF results to GitHub Code Scanning so findings appear as
+      inline annotations on pull requests.
+      Requires the 'security-events: write' permission.
+    required: false
+    default: "false"
+
+  drift-version:
+    description: >
+      pip install spec for drift-analyzer, e.g. 'drift-analyzer==0.2.0'.
+      Defaults to the latest published release.
+    required: false
+    default: "drift-analyzer"
+
+outputs:
+  sarif-file:
+    description: "Absolute path to the generated SARIF file (only set when upload-sarif is 'true')."
+    value: ${{ steps.drift-run.outputs.sarif-file }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
+
+    - name: Install drift-analyzer
+      shell: bash
+      run: pip install --quiet "${{ inputs.drift-version }}"
+
+    - name: Run drift check
+      id: drift-run
+      shell: bash
+      env:
+        DRIFT_REPO: ${{ inputs.repo }}
+        DRIFT_FAIL_ON: ${{ inputs.fail-on }}
+        DRIFT_FORMAT: ${{ inputs.format }}
+        DRIFT_CONFIG: ${{ inputs.config }}
+        DRIFT_UPLOAD_SARIF: ${{ inputs.upload-sarif }}
+      run: |
+        ARGS="--repo ${DRIFT_REPO} --fail-on ${DRIFT_FAIL_ON}"
+
+        if [ -n "${DRIFT_CONFIG}" ]; then
+          ARGS="${ARGS} --config ${DRIFT_CONFIG}"
+        fi
+
+        if [ "${DRIFT_UPLOAD_SARIF}" = "true" ]; then
+          SARIF_FILE="${RUNNER_TEMP}/drift-results.sarif"
+          DRIFT_EXIT=0
+          drift check ${ARGS} --format sarif > "${SARIF_FILE}" || DRIFT_EXIT=$?
+          echo "sarif-file=${SARIF_FILE}" >> "${GITHUB_OUTPUT}"
+          exit ${DRIFT_EXIT}
+        else
+          drift check ${ARGS} --format "${DRIFT_FORMAT}"
+        fi
+
+    # Upload SARIF so findings appear as PR annotations in GitHub Code Scanning.
+    # Runs even when the check step failed so that SARIF is never lost.
+    - name: Upload SARIF to GitHub Code Scanning
+      if: always() && inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.drift-run.outputs.sarif-file }}
+        category: drift
+        wait-for-processing: true

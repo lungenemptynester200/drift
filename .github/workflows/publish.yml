@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      id-token: write  # Trusted publishing — no API key needed
+      id-token: write # Trusted publishing — no API key needed
 
     steps:
       - uses: actions/download-artifact@v4

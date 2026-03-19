@@ -9,6 +9,7 @@ assignees: []
 ## Signal affected
 
 <!-- Which signal produced the false result? -->
+
 - [ ] Pattern Fragmentation (PFS)
 - [ ] Architecture Violations (AVS)
 - [ ] Mutant Duplicates (MDS)
@@ -34,4 +35,5 @@ Explain why drift's assessment is wrong in this case.
 ## drift.yaml config (if any)
 
 ```yaml
+
 ```

@@ -16,6 +16,7 @@ pytest
 Check the [open issues](https://github.com/sauremilk/drift/issues) — issues labelled **`good first issue`** are a good entry point.
 
 High-value contributions:
+
 - **New detection signals** — see `src/drift/signals/base.py` for the interface
 - **TypeScript support** — tree-sitter integration (see roadmap in README)
 - **False positive fixes** — signal quality improvements are always welcome
@@ -29,6 +30,7 @@ High-value contributions:
 4. Write tests in `tests/signals/test_your_signal.py`
 
 Signals must be:
+
 - **Deterministic** — same input always produces same output
 - **LLM-free** — the core pipeline uses only AST analysis and statistics
 - **Fast** — target < 500ms per 1 000 functions
