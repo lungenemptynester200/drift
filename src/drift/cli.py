@@ -65,28 +65,33 @@ def analyze(
 
     cfg = DriftConfig.load(repo, config)
 
+    # For machine-readable formats, send progress to stderr so stdout stays clean
+    progress_console = Console(stderr=True) if output_format != "rich" else console
+
     progress = Progress(
         TextColumn("[bold blue]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
-        console=console,
+        console=progress_console,
     )
 
     task_id = None
+    _last_total: int = 1
 
     def _on_progress(phase: str, current: int, total: int) -> None:
-        nonlocal task_id
+        nonlocal task_id, _last_total
         if task_id is not None:
             progress.update(task_id, completed=total, total=total)
             progress.remove_task(task_id)
-        task_id = progress.add_task(phase, total=max(total, 1), completed=current)
+        _last_total = max(total, 1)
+        task_id = progress.add_task(phase, total=_last_total, completed=current)
 
     with progress:
         analysis = analyze_repo(
             repo, cfg, since_days=since, target_path=path, on_progress=_on_progress
         )
         if task_id is not None:
-            progress.update(task_id, completed=progress.tasks[task_id].total)
+            progress.update(task_id, completed=_last_total)
 
     if output_format == "json":
         from drift.output.json_output import analysis_to_json

@@ -123,7 +123,14 @@ class MutantDuplicateSignal(BaseSignal):
                             file_path=a.file_path,
                             start_line=a.start_line,
                             related_files=[b.file_path],
-                            metadata={"similarity": 1.0, "body_hash": h},
+                            metadata={
+                                    "similarity": 1.0,
+                                    "body_hash": h,
+                                    "function_a": a.name,
+                                    "function_b": b.name,
+                                    "file_a": str(a.file_path),
+                                    "file_b": str(b.file_path),
+                                },
                         )
                     )
 
@@ -179,7 +186,13 @@ class MutantDuplicateSignal(BaseSignal):
                         file_path=a.file_path,
                         start_line=a.start_line,
                         related_files=[b.file_path],
-                        metadata={"similarity": round(sim, 3)},
+                        metadata={
+                            "similarity": round(sim, 3),
+                            "function_a": a.name,
+                            "function_b": b.name,
+                            "file_a": str(a.file_path),
+                            "file_b": str(b.file_path),
+                        },
                     )
                 )
 

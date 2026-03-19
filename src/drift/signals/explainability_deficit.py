@@ -150,6 +150,7 @@ class ExplainabilityDeficitSignal(BaseSignal):
                     end_line=func.end_line,
                     ai_attributed=ai_related,
                     metadata={
+                        "function_name": func.name,
                         "complexity": func.complexity,
                         "loc": func.loc,
                         "has_docstring": func.has_docstring,
