@@ -1,0 +1,12 @@
+- id: drift-check
+  name: Drift — Architectural Erosion Check
+  description: >
+    Detect architectural erosion from AI-generated code.
+    Fails if any finding at or above the configured severity threshold is found.
+  language: python
+  entry: drift check
+  args: [--fail-on, high]
+  types: [python]
+  pass_filenames: false
+  always_run: true
+  additional_dependencies: [drift-analyzer]

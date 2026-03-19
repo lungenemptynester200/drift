@@ -29,6 +29,59 @@ drift patterns
 drift analyze --format json
 ```
 
+## pre-commit Hook
+
+Add drift as a [pre-commit](https://pre-commit.com) hook so it runs before every commit:
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/sauremilk/drift
+    rev: v1
+    hooks:
+      - id: drift-check
+        args: [--fail-on, high]
+```
+
+## GitHub Action
+
+Add drift to any repository's CI pipeline in seconds:
+
+```yaml
+# .github/workflows/drift.yml
+name: Drift
+
+on: [push, pull_request]
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # required for upload-sarif
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full git history for temporal signals
+
+      - uses: sauremilk/drift@v1
+        with:
+          fail-on: high # exit 1 on high/critical findings
+          upload-sarif: "true" # inline annotations in GitHub Code Scanning
+```
+
+| Input           | Default | Description                                                                      |
+| --------------- | ------- | -------------------------------------------------------------------------------- |
+| `fail-on`       | `high`  | Minimum severity that fails the build: `critical` \| `high` \| `medium` \| `low` |
+| `upload-sarif`  | `false` | Upload SARIF to GitHub Code Scanning (requires `security-events: write`)         |
+| `since`         | `90`    | Days of git history for temporal signals                                         |
+| `format`        | `rich`  | Terminal output: `rich` \| `json` \| `sarif`                                     |
+| `config`        | —       | Path to `drift.yaml` config file                                                 |
+| `drift-version` | latest  | pip version spec, e.g. `drift-analyzer==0.2.0`                                   |
+
+A full example workflow is available at [`examples/drift-check.yml`](examples/drift-check.yml).
+
 ## What Drift Detects
 
 Drift measures 6 active detection signals, each targeting a different dimension of architectural erosion:
@@ -155,7 +208,7 @@ drift trend --last 90
 
 ### `drift timeline`
 
-**Root-cause analysis** — identifies *when* drift began per module and correlates it with AI-attributed commits. Shows clean periods, drift onset dates, trigger commits, and AI burst detection.
+**Root-cause analysis** — identifies _when_ drift began per module and correlates it with AI-attributed commits. Shows clean periods, drift onset dates, trigger commits, and AI burst detection.
 
 ```bash
 drift timeline --repo . --since 90
