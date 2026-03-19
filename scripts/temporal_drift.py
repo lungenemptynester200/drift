@@ -98,6 +98,61 @@ def list_commits(repo_path: Path, n: int) -> list[dict[str, str]]:
     return commits
 
 
+def resolve_tags(repo_path: Path, tag_patterns: list[str]) -> list[dict[str, str]]:
+    """Resolve tag names to commit dicts, sorted chronologically by tag date."""
+    # List all tags
+    result = subprocess.run(
+        ["git", "tag", "-l"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        return []
+
+    import fnmatch
+
+    all_tags = result.stdout.strip().splitlines()
+    matched = []
+    for tag in all_tags:
+        if any(fnmatch.fnmatch(tag, pat) for pat in tag_patterns):
+            matched.append(tag)
+
+    if not matched:
+        log.error("No tags matching %s found in %s", tag_patterns, repo_path.name)
+        return []
+
+    # Resolve each tag to a commit
+    commits = []
+    for tag in matched:
+        fmt = "%H|%h|%an|%aI|%s"
+        res = subprocess.run(
+            ["git", "log", "-1", f"--pretty=format:{fmt}", tag],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            parts = res.stdout.strip().split("|", 4)
+            if len(parts) == 5:
+                commits.append(
+                    {
+                        "hash": parts[0],
+                        "short": parts[1],
+                        "author": parts[2],
+                        "date": parts[3],
+                        "message": f"tag: {tag} — {parts[4][:50]}",
+                        "tag": tag,
+                    }
+                )
+
+    # Sort by date chronologically
+    commits.sort(key=lambda c: c["date"])
+    return commits
+
+
 def create_worktree(repo_path: Path, commit_hash: str, dest: Path) -> bool:
     """Create a detached git worktree for a specific commit."""
     result = subprocess.run(
@@ -129,7 +184,10 @@ def remove_worktree(repo_path: Path, dest: Path) -> None:
 
 
 def analyze_commit(
-    repo_path: Path, commit: dict[str, str], work_dir: Path, config: DriftConfig,
+    repo_path: Path,
+    commit: dict[str, str],
+    work_dir: Path,
+    config: DriftConfig,
     since_days: int = 90,
 ) -> CommitSnapshot:
     """Analyze a single commit by creating a worktree and running drift."""
@@ -163,9 +221,7 @@ def analyze_commit(
         for ms in analysis.module_scores:
             for sig, score in ms.signal_scores.items():
                 sig_agg.setdefault(sig.value, []).append(score)
-        signal_scores = {
-            k: round(sum(v) / len(v), 4) if v else 0.0 for k, v in sig_agg.items()
-        }
+        signal_scores = {k: round(sum(v) / len(v), 4) if v else 0.0 for k, v in sig_agg.items()}
 
         return CommitSnapshot(
             commit_hash=commit_hash,
@@ -200,7 +256,10 @@ def analyze_commit(
 
 
 def run_temporal_analysis(
-    repo_path: Path, n_commits: int, config: DriftConfig, since_days: int = 90,
+    repo_path: Path,
+    n_commits: int,
+    config: DriftConfig,
+    since_days: int = 90,
 ) -> list[CommitSnapshot]:
     """Run drift on the last N commits and return snapshots."""
     repo_path = repo_path.resolve()
@@ -237,6 +296,54 @@ def run_temporal_analysis(
         # Clean up temp directory
         shutil.rmtree(work_dir, ignore_errors=True)
         # Prune worktree refs
+        subprocess.run(
+            ["git", "worktree", "prune"],
+            cwd=repo_path,
+            capture_output=True,
+            timeout=10,
+        )
+
+    return snapshots
+
+
+def run_tag_analysis(
+    repo_path: Path,
+    tag_patterns: list[str],
+    config: DriftConfig,
+    since_days: int = 365,
+) -> list[CommitSnapshot]:
+    """Run drift on specific tagged versions and return snapshots."""
+    repo_path = repo_path.resolve()
+    commits = resolve_tags(repo_path, tag_patterns)
+    if not commits:
+        return []
+
+    log.info("Matched %d tags in %s", len(commits), repo_path.name)
+    for c in commits:
+        log.info("  %s  %s", c.get("tag", c["short"]), c["date"][:10])
+    log.info("\nAnalyzing %d tagged versions...\n", len(commits))
+
+    snapshots: list[CommitSnapshot] = []
+    work_dir = Path(tempfile.mkdtemp(prefix="drift-tags-"))
+
+    try:
+        for i, commit in enumerate(commits, 1):
+            log.info("[%d/%d]", i, len(commits))
+            # Use longer since_days for tags (they span years)
+            snapshot = analyze_commit(repo_path, commit, work_dir, config, since_days)
+            snapshots.append(snapshot)
+            if snapshot.error:
+                log.warning("        ⚠ Error: %s", snapshot.error)
+            else:
+                log.info(
+                    "        score=%.3f  files=%d  findings=%d  (%.1fs)",
+                    snapshot.drift_score,
+                    snapshot.total_files,
+                    snapshot.total_findings,
+                    snapshot.duration_seconds,
+                )
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
         subprocess.run(
             ["git", "worktree", "prune"],
             cwd=repo_path,
@@ -381,6 +488,12 @@ def main() -> None:
         help="Number of commits to analyze (default: 20)",
     )
     parser.add_argument(
+        "--tags",
+        nargs="+",
+        default=None,
+        help="Analyze specific tags (glob patterns, e.g. '3.*' '4.*' '5.*')",
+    )
+    parser.add_argument(
         "--csv",
         type=Path,
         default=None,
@@ -416,7 +529,10 @@ def main() -> None:
         embeddings_enabled=not args.no_embeddings,
     )
 
-    snapshots = run_temporal_analysis(args.repo, args.commits, config, args.since_days)
+    if args.tags:
+        snapshots = run_tag_analysis(args.repo, args.tags, config, args.since_days)
+    else:
+        snapshots = run_temporal_analysis(args.repo, args.commits, config, args.since_days)
     print_timeline(snapshots)
 
     if args.csv:
