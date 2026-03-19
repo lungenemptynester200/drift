@@ -1,5 +1,5 @@
 name: "Drift — Architectural Erosion Check"
-description: "Detect architectural erosion from AI-generated code. Measures pattern fragmentation, architecture violations, mutant duplicates, and more."
+description: "Detect architectural erosion from AI-generated code. Finds pattern fragmentation, architecture violations & more."
 
 branding:
   icon: "activity"
