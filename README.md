@@ -209,6 +209,27 @@ weights:
   doc_impl_drift: 0.00 # Phase 2 — not active
 ```
 
+### Observed Score Ranges
+
+Empirical ranges observed across 8 well-known open-source Python repositories (see [STUDY.md](STUDY.md) §11.5 for methodology):
+
+| Range         | Interpretation                       | Observed Examples                        |
+| ------------- | ------------------------------------ | ---------------------------------------- |
+| **< 0.40**    | Focused / hand-crafted               | requests (0.376)                         |
+| **0.40–0.50** | Normal / moderately complex          | flask (0.413), drift (0.450), httpx (0.486) |
+| **0.50–0.55** | Complex / framework-typical          | sqlmodel (0.504), pydantic (0.531)       |
+| **> 0.55**    | Large-scale / high structural inertia | fastapi (0.582), django (0.546)          |
+
+> **Note:** These ranges are hypotheses derived from observed data, not validated thresholds/SLOs.
+> The score reflects structural complexity — a high score is not inherently "bad" (django is well-maintained at 0.54).
+> Track _trends_ over time, not absolute values. See `drift trend` for built-in tracking.
+
+**Temporal stability:** Scores are highly stable across consecutive commits:
+- drift: σ=0.012 over 10 commits (range 0.439–0.475)
+- django: σ=0.004 over 20 commits (range 0.535–0.546)
+
+Use `scripts/temporal_drift.py` to generate temporal score curves for any repository.
+
 ## Configuration
 
 Create a `drift.yaml` in your project root:
