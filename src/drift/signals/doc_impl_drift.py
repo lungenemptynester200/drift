@@ -117,6 +117,41 @@ def _get_mistune():
 
 
 _FALLBACK_DIR_RE = re.compile(r"(?<!\w)(\w[\w\-]*)/" r"(?!\S*://)")
+_VERSION_SEGMENT_RE = re.compile(r"^(?:v\d+(?:[._-]\d+)*)$")
+
+
+def _is_likely_proper_noun(name: str) -> bool:
+    """Heuristic for prose nouns that are unlikely to be repo directories."""
+    if not name:
+        return False
+    if not name[0].isupper():
+        return False
+    if name.isupper():
+        return False
+    if "_" in name:
+        return False
+    return not any(ch.isdigit() for ch in name)
+
+
+def _is_version_or_numeric_segment(name: str) -> bool:
+    """Return True for numeric/version-like fragments (v1/, 2024/, 20240315/)."""
+    if not name:
+        return False
+    if name.isdigit():
+        # years, dates, generic numeric URL/path segments
+        return len(name) >= 4
+    return _VERSION_SEGMENT_RE.match(name.lower()) is not None
+
+
+def _is_noise_dir_reference(name: str) -> bool:
+    """Return True if *name* is likely noise and should be ignored."""
+    if len(name) <= 1:
+        return True
+    if _is_url_segment(name):
+        return True
+    if _is_version_or_numeric_segment(name):
+        return True
+    return bool(_is_likely_proper_noun(name))
 
 
 def _extract_dir_refs_from_ast(markdown_text: str) -> set[str]:
@@ -136,7 +171,7 @@ def _extract_dir_refs_from_ast(markdown_text: str) -> set[str]:
         # Strip inline links [text](url) to avoid extracting URL segments
         cleaned = re.sub(r"\[([^\]]*)\]\([^)]+\)", r"\1", cleaned)
         fallback_refs = set(_FALLBACK_DIR_RE.findall(cleaned))
-        return {r for r in fallback_refs if not _is_url_segment(r)}
+        return {r for r in fallback_refs if not _is_noise_dir_reference(r)}
 
     md = mistune.create_markdown(renderer="ast")
     try:
@@ -147,7 +182,7 @@ def _extract_dir_refs_from_ast(markdown_text: str) -> set[str]:
 
     refs: set[str] = set()
     _walk_tokens(tokens, refs)
-    return refs
+    return {r for r in refs if not _is_noise_dir_reference(r)}
 
 
 _PROSE_DIR_RE = re.compile(r"`?(\w[\w\-]*)/" r"`?")
@@ -273,7 +308,7 @@ class DocImplDriftSignal(BaseSignal):
 
         # Check for phantom references: mentioned in README but absent
         for ref in sorted(referenced_dirs):
-            if _is_url_segment(ref):
+            if _is_noise_dir_reference(ref):
                 continue
 
             candidate = self._repo_path / ref
@@ -291,7 +326,7 @@ class DocImplDriftSignal(BaseSignal):
                             f" exists. Documentation may be outdated."
                         ),
                         file_path=readme_path.relative_to(self._repo_path),
-                        fix=f"Entferne '{ref}/' aus README oder lege das Verzeichnis an.",
+                        fix=f"Entferne '{ref}/' aus README.md oder lege das Verzeichnis an.",
                         metadata={"referenced_dir": ref},
                     )
                 )
@@ -338,12 +373,7 @@ class DocImplDriftSignal(BaseSignal):
     ) -> list[Finding]:
         """Scan ADR and architecture docs for stale directory claims."""
         findings: list[Finding] = []
-        adr_dirs = [
-            self._repo_path / "docs" / "adr",
-            self._repo_path / "docs" / "adrs",
-            self._repo_path / "adr",
-            self._repo_path / "docs" / "architecture",
-        ]
+        adr_dirs = self._discover_adr_dirs()
 
         for adr_dir in adr_dirs:
             if not adr_dir.is_dir():
@@ -355,7 +385,7 @@ class DocImplDriftSignal(BaseSignal):
                     continue
                 refs = _extract_dir_refs_from_ast(text)
                 for ref in sorted(refs):
-                    if _is_url_segment(ref):
+                    if _is_noise_dir_reference(ref):
                         continue
                     candidate = self._repo_path / ref
                     if not candidate.exists() and ref.lower() not in {
@@ -391,6 +421,47 @@ class DocImplDriftSignal(BaseSignal):
                         )
 
         return findings
+
+    def _discover_adr_dirs(self) -> list[Path]:
+        """Discover likely ADR/architecture-doc directories in the repository."""
+        seed_dirs = [
+            self._repo_path / "docs" / "adr",
+            self._repo_path / "docs" / "adrs",
+            self._repo_path / "adr",
+            self._repo_path / "docs" / "architecture",
+            self._repo_path / "doc" / "adr",
+            self._repo_path / "doc" / "adrs",
+            self._repo_path / "doc" / "decisions",
+            self._repo_path / "architecture" / "decisions",
+        ]
+        roots_to_scan = [
+            self._repo_path,
+            self._repo_path / "docs",
+            self._repo_path / "doc",
+            self._repo_path / "architecture",
+        ]
+        discovered: set[Path] = set()
+        for path in seed_dirs:
+            if path.is_dir():
+                discovered.add(path)
+
+        for root in roots_to_scan:
+            if not root.is_dir():
+                continue
+            try:
+                children = list(root.iterdir())
+            except OSError:
+                continue
+            for child in children:
+                if not child.is_dir():
+                    continue
+                name = child.name.lower()
+                if name in {"adr", "adrs", "decisions", "architecture"} or (
+                    "adr" in name and len(name) <= 20
+                ):
+                    discovered.add(child)
+
+        return sorted(discovered)
 
     def _find_readme(self) -> Path | None:
         for name in ("README.md", "README.rst", "README.txt", "README"):
