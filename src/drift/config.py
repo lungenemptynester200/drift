@@ -35,6 +35,7 @@ class ThresholdsConfig(BaseModel):
     high_complexity: int = 10
     medium_complexity: int = 5
     min_function_loc: int = 10
+    min_complexity: int = 5
     similarity_threshold: float = 0.80
     recency_days: int = 14
     volatility_z_threshold: float = 1.5

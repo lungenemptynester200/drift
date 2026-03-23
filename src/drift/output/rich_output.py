@@ -173,6 +173,7 @@ def render_findings(
     findings: list[Finding],
     max_items: int = 20,
     console: Console | None = None,
+    sort_by: str = "impact",
 ) -> None:
     """Render a list of findings with fix recommendations and all locations."""
     if console is None:
@@ -182,12 +183,15 @@ def render_findings(
         console.print("[green]No findings.[/green]")
         return
 
-    # Sort by impact if available, fall back to score
-    sorted_findings = sorted(
-        findings,
-        key=lambda f: (f.impact if f.impact > 0 else f.score),
-        reverse=True,
-    )
+    if sort_by == "score":
+        sorted_findings = sorted(findings, key=lambda f: f.score, reverse=True)
+    else:
+        # Sort by impact if available, fall back to score
+        sorted_findings = sorted(
+            findings,
+            key=lambda f: (f.impact if f.impact > 0 else f.score),
+            reverse=True,
+        )
 
     table = Table(title="Findings", show_lines=True)
     table.add_column("", width=2)
@@ -260,7 +264,12 @@ def _format_module_detail(module: ModuleScore) -> Text:
     return text
 
 
-def render_full_report(analysis: RepoAnalysis, console: Console | None = None) -> None:
+def render_full_report(
+    analysis: RepoAnalysis,
+    console: Console | None = None,
+    sort_by: str = "impact",
+    max_findings: int = 20,
+) -> None:
     """Render the complete analysis report."""
     if console is None:
         console = Console()
@@ -269,7 +278,12 @@ def render_full_report(analysis: RepoAnalysis, console: Console | None = None) -
     console.print()
     render_module_table(analysis, console)
     console.print()
-    render_findings(analysis.findings, console=console)
+    render_findings(
+        analysis.findings,
+        max_items=max_findings,
+        console=console,
+        sort_by=sort_by,
+    )
 
 
 # ---------------------------------------------------------------------------

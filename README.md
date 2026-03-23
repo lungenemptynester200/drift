@@ -1,10 +1,14 @@
 # Drift — Codebase Coherence Analyzer
 
+[![CI](https://github.com/sauremilk/drift/actions/workflows/ci.yml/badge.svg)](https://github.com/sauremilk/drift/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sauremilk/drift/graph/badge.svg)](https://codecov.io/gh/sauremilk/drift)
+[![PyPI version](https://img.shields.io/pypi/v/drift-analyzer.svg)](https://pypi.org/project/drift-analyzer/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com)
 [![SARIF](https://img.shields.io/badge/output-SARIF-blueviolet)](https://docs.github.com/en/code-security/code-scanning)
 [![TypeScript](https://img.shields.io/badge/TypeScript-optional-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://sauremilk.github.io/drift/)
 
 **Detect architectural erosion from AI-generated code.**
 
@@ -25,7 +29,9 @@ Drift is a static analysis tool that measures how well a codebase maintains its 
 - [GitHub Action](#github-action)
 - [CLI Commands](#cli-commands)
 - [Architecture](#architecture)
+- [How It Works: Algorithm Deep Dive](#how-it-works-algorithm-deep-dive)
 - [Design Decisions](#design-decisions)
+- [Case Studies](#case-studies)
 - [Development](#development)
 - [Benchmark Study](STUDY.md)
 - [Roadmap](#roadmap)
@@ -70,10 +76,10 @@ Top finding for each repo: FastAPI → 499 near-duplicate test functions (MDS), 
 ## Quick Start
 
 ```bash
-# Install from PyPI (when published)
+# Install from PyPI
 pip install drift-analyzer
 
-# Or install from source
+# Or install from source (development)
 pip install -e ".[dev]"
 
 # Analyze a repository
@@ -419,6 +425,82 @@ drift/
 
 5. **Signal architecture.** Each signal is an independent analyzer implementing `BaseSignal`. Signals are composed, not chained — they run on the same parsed data. Adding a new signal requires one file and one decorator.
 
+---
+
+## How It Works: Algorithm Deep Dive
+
+This section explains the core algorithms that power drift's analysis pipeline. These are the techniques a static analysis tool needs to detect architectural erosion without relying on LLMs.
+
+### AST Fingerprinting (O(n) per file)
+
+Instead of comparing source text, drift reduces code patterns to **structural fingerprints** — normalized JSON representations of AST subtrees. This makes detection invariant to variable names, formatting, and comments.
+
+```
+Source Code                          AST Fingerprint
+──────────────────────────────────   ──────────────────────────────────
+try:                                 {"handler_types": ["ValueError"],
+    result = parse(data)              "body_actions":   ["return"],
+    return result                     "has_bare_except": false,
+except ValueError:                    "reraises":        false}
+    return None
+```
+
+**AST n-grams** (3-grams of node type names) capture structural shape while normalizing away identifiers and literals. Two functions with identical n-gram multisets but different variable names are structurally identical — exactly what copy-paste-then-modify patterns produce.
+
+**Implementation:** `src/drift/ingestion/ast_parser.py` — Python's `ast` module with a custom `NodeVisitor` for cyclomatic complexity, fingerprint extraction, and n-gram computation in a single O(n) traversal.
+
+### Near-Duplicate Detection via Multiset Jaccard (O(k²) per bucket)
+
+The Mutant Duplicate Signal (MDS) finds functions that are structurally almost identical — the "copy-paste-then-modify" pattern common in AI-generated code.
+
+**Three-phase approach:**
+
+1. **Exact duplicates** — Group by `body_hash` (SHA-256 of normalized AST). O(n).
+2. **Structural near-duplicates** — Bucket functions by LOC (±10%), then compare AST n-gram multisets using **Jaccard similarity**:
+
+$$J(A, B) = \frac{\sum \min(A_i, B_i)}{\sum \max(A_i, B_i)}$$
+
+   Pairs above 0.80 similarity are flagged. Bucketing reduces the naive O(n²) to O(k²) per bucket with a hard cap of 500 comparisons per bucket.
+
+3. **Semantic near-duplicates** (optional) — When `sentence-transformers` is installed, a FAISS index enables k-NN search across all functions. Hybrid scoring blends structural and semantic similarity: `0.6 × jaccard + 0.4 × cosine_embedding` with a 0.75 threshold.
+
+**Implementation:** `src/drift/signals/mutant_duplicates.py`
+
+### Import Graph Analysis via NetworkX (O(n + m))
+
+The Architecture Violation Signal (AVS) builds a **directed import graph** (nodes = files, edges = imports) and detects boundary violations using layer inference.
+
+**Key techniques:**
+
+- **Layer inference** — Each file is assigned to an architectural layer (API=0, Services=1, DB=2) based on directory conventions. An "omnilayer" concept exempts cross-cutting modules (`utils/`, `config/`, `types/`) from violations.
+- **Upward import detection** — Edges where `source_layer > destination_layer` (e.g., DB module importing from API layer) are flagged as violations.
+- **Hub-module dampening** — Files with in-degree centrality above the 90th percentile are classified as hubs. Findings against hubs receive a 0.5× score multiplier to reduce false positives from legitimate architectural hubs.
+- **Circular dependency detection** — Strongly connected components (Tarjan's algorithm, O(n + m)) identify circular import chains.
+
+**Implementation:** `src/drift/signals/architecture_violation.py` — powered by `networkx.DiGraph`.
+
+### Count-Dampened Composite Scoring
+
+Individual signal scores are combined into a single drift score using **logarithmic count dampening** — preventing signals with many low-confidence findings from dominating:
+
+$$\text{signal\_score} = \overline{s} \times \min\!\left(1,\; \frac{\ln(1 + n)}{\ln(1 + k)}\right)$$
+
+where $\overline{s}$ = mean finding score, $n$ = finding count, $k$ = dampening constant (10).
+
+The composite score is a weighted average across all signals. Weights are calibrated via **ablation study**: each signal is removed, the F1-score delta is measured, and higher-impact signals receive proportionally higher weights.
+
+**Implementation:** `src/drift/scoring/engine.py`
+
+### Complexity Summary
+
+| Component | Algorithm | Complexity | Key Technique |
+|---|---|---|---|
+| AST Parsing | Visitor pattern | O(n) per file | Fingerprinting + n-gram extraction |
+| Near-Duplicates (MDS) | Multiset Jaccard + FAISS | O(k²) per bucket | LOC-bucketing + hybrid similarity |
+| Architecture (AVS) | Graph analysis | O(n + m) | Tarjan SCC + hub dampening |
+| Pattern Fragmentation (PFS) | Fingerprint grouping | O(n) | Variant counting + normalization |
+| Composite Scoring | Weighted aggregation | O(n) | Logarithmic count dampening |
+
 ## Development
 
 ```bash
@@ -474,6 +556,41 @@ When tree-sitter is installed, drift automatically:
 - Includes TypeScript files in the default `include` patterns
 
 Without tree-sitter, TypeScript files are skipped during analysis.
+
+## Case Studies
+
+### FastAPI — Pattern Fragmentation in a Growing Framework
+
+**Repository:** [fastapi/fastapi](https://github.com/fastapi/fastapi) (1,118 files, 4,554 functions)
+**Drift Score:** 0.690 (HIGH) | **Time:** 2.3s
+
+FastAPI's top signal: **499 near-duplicate test functions** (MDS score 0.85). Test helper patterns diverged across endpoint modules — `test_read_items()`, `test_read_users()`, `test_read_events()` share identical assertion structures with only the model name changed.
+
+The PFS signal found **4 distinct error-handling patterns** across route modules — a classic sign of framework growth where new contributors implement patterns differently than core maintainers.
+
+**Takeaway:** Even well-maintained frameworks accumulate structural debt at scale. Drift quantifies what code reviewers notice intuitively: "this feels inconsistent."
+
+### Pydantic — Explainability Deficit in Complex Internals
+
+**Repository:** [pydantic/pydantic](https://github.com/pydantic/pydantic) (403 files, 8,384 functions)
+**Drift Score:** 0.577 (MEDIUM) | **Time:** 57.9s
+
+Pydantic's dominant signal: **117 underdocumented internal functions** (EDS). The `_internal/` package contains highly complex validation logic (cyclomatic complexity >15) with minimal docstrings — understandable for internal code, but a maintenance risk when contributors need to modify it.
+
+**Takeaway:** High complexity without documentation creates a "bus factor" problem. Drift flags the riskiest functions, not all functions.
+
+### Django — Structural Stability Across 10 Years of Releases
+
+**Repository:** [django/django](https://github.com/django/django) (17 releases, 1.8→6.0)
+**Drift Score Range:** 0.535–0.563 (σ=0.004)
+
+django's drift score plateaued at 0.553–0.563 across Django 2.0→5.2 — then **dropped by 0.016 at Django 6.0** when 116 deprecation-removal commits cleaned up legacy debt.
+
+This confirms drift measures structural coherence, not codebase size. The score correlates with intentional cleanup, not arbitrary growth.
+
+**Takeaway:** Track trends, not absolute numbers. A stable score means consistent architecture. A sudden drop after cleanup means the tool is calibrated correctly. Full analysis: [STUDY.md §11.7](STUDY.md).
+
+---
 
 ## Roadmap
 

@@ -33,6 +33,8 @@ from statistics import mean, stdev
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tests.fixtures.ground_truth import ALL_FIXTURES, GroundTruthFixture
+
 import drift.signals.architecture_violation  # noqa: F401
 import drift.signals.doc_impl_drift  # noqa: F401
 import drift.signals.explainability_deficit  # noqa: F401
@@ -46,7 +48,6 @@ from drift.ingestion.file_discovery import discover_files
 from drift.models import FileHistory, Finding, SignalType
 from drift.scoring.engine import calibrate_weights
 from drift.signals.base import AnalysisContext, create_signals
-from tests.fixtures.ground_truth import ALL_FIXTURES, GroundTruthFixture
 
 ACTIVE_SIGNALS = [
     SignalType.PATTERN_FRAGMENTATION,
@@ -80,9 +81,7 @@ def _run_fixtures(
         )
 
         files = discover_files(fixture_dir, config.include, config.exclude)
-        parse_results = [
-            parse_file(f.path, fixture_dir, f.language) for f in files
-        ]
+        parse_results = [parse_file(f.path, fixture_dir, f.language) for f in files]
 
         file_histories: dict[str, FileHistory] = {}
         for finfo in files:
@@ -120,15 +119,12 @@ def _run_fixtures(
                 last_modified=(
                     datetime.datetime.now(tz=datetime.UTC)
                     if is_new
-                    else datetime.datetime.now(tz=datetime.UTC)
-                    - datetime.timedelta(days=60)
+                    else datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=60)
                 ),
                 first_seen=(
-                    datetime.datetime.now(tz=datetime.UTC)
-                    - datetime.timedelta(days=3)
+                    datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=3)
                     if is_new
-                    else datetime.datetime.now(tz=datetime.UTC)
-                    - datetime.timedelta(days=120)
+                    else datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=120)
                 ),
             )
 
@@ -167,9 +163,7 @@ def _compute_f1(
     for fixture in fixtures:
         fixture_findings = findings_by_fixture.get(fixture.name, [])
         for exp in fixture.expected:
-            matched = any(
-                f.signal_type == exp.signal_type for f in fixture_findings
-            )
+            matched = any(f.signal_type == exp.signal_type for f in fixture_findings)
             if exp.should_detect and matched:
                 tp += 1
             elif exp.should_detect and not matched:
@@ -179,11 +173,7 @@ def _compute_f1(
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 1.0
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if (precision + recall) > 0
-        else 0.0
-    )
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
     return f1, tp, fp, fn
 
 
@@ -273,9 +263,7 @@ def run_loocv() -> LOOCVResult:
             for signal in ACTIVE_SIGNALS:
                 abl_dir = tmp / f"fold_{i}_abl_{signal.value}"
                 abl_dir.mkdir()
-                abl_grouped = _run_fixtures(
-                    train_fixtures, abl_dir, exclude_signal=signal
-                )
+                abl_grouped = _run_fixtures(train_fixtures, abl_dir, exclude_signal=signal)
                 abl_f1, _, _, _ = _compute_f1(train_fixtures, abl_grouped)
                 fold_deltas[signal.value] = train_f1 - abl_f1
 
@@ -316,17 +304,12 @@ def run_loocv() -> LOOCVResult:
     # ── Aggregate ────────────────────────────────────────────────────
     prec = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 1.0
     rec = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 1.0
-    held_out_f1 = (
-        2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
-    )
+    held_out_f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
 
     # Weight stability across folds
     weight_keys = list(folds[0].weights.keys())
     weight_means = {k: mean(f.weights[k] for f in folds) for k in weight_keys}
-    weight_stdevs = {
-        k: stdev(f.weights[k] for f in folds) if n > 1 else 0.0
-        for k in weight_keys
-    }
+    weight_stdevs = {k: stdev(f.weights[k] for f in folds) if n > 1 else 0.0 for k in weight_keys}
 
     result = LOOCVResult(
         n_fixtures=n,
@@ -354,7 +337,7 @@ def run_loocv() -> LOOCVResult:
     print()
     print("Weight stability across folds:")
     print(f"  {'Signal':<30s}  {'Full-set':>8s}  {'Mean':>8s}  {'σ':>8s}  {'Δmax':>8s}")
-    print(f"  {'-'*30}  {'-'*8}  {'-'*8}  {'-'*8}  {'-'*8}")
+    print(f"  {'-' * 30}  {'-' * 8}  {'-' * 8}  {'-' * 8}  {'-' * 8}")
     for k in weight_keys:
         full_w = full_weights_dict[k]
         mean_w = weight_means[k]
@@ -375,9 +358,7 @@ def _fmt_weights(w: dict[str, float]) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="LOOCV validation for drift weight calibration"
-    )
+    parser = argparse.ArgumentParser(description="LOOCV validation for drift weight calibration")
     parser.add_argument(
         "--json",
         type=str,
@@ -399,4 +380,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

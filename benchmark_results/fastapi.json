@@ -1,26 +1,26 @@
 {
   "name": "fastapi",
-  "drift_score": 0.681,
+  "drift_score": 0.624,
   "severity": "high",
-  "files": 1118,
-  "functions": 4554,
+  "files": 664,
+  "functions": 3902,
   "ai_ratio": 0.0,
-  "analysis_s": 13.88,
-  "wall_s": 14.39,
-  "findings": 608,
+  "analysis_s": 13.14,
+  "wall_s": 13.77,
+  "findings": 360,
   "signals": {},
   "top5": [
     {
       "sig": "system_misalignment",
       "sev": "medium",
       "score": 1.0,
-      "title": "Novel dependencies in fastapi/_compat/"
+      "title": "Novel dependencies in fastapi/"
     },
     {
       "sig": "system_misalignment",
       "sev": "medium",
       "score": 1.0,
-      "title": "Novel dependencies in fastapi/"
+      "title": "Novel dependencies in fastapi/_compat/"
     },
     {
       "sig": "system_misalignment",

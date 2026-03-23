@@ -98,9 +98,25 @@ def main():
     print(f"Clone dir: {tmp}")
 
     repos = {
+        # --- Original corpus (5 repos) ---
         "fastapi": "https://github.com/fastapi/fastapi.git",
         "pydantic": "https://github.com/pydantic/pydantic.git",
         "httpx": "https://github.com/encode/httpx.git",
+        # --- Phase 2.4 expansion (10 repos) ---
+        # Layered / well-structured
+        "flask": "https://github.com/pallets/flask.git",
+        "starlette": "https://github.com/encode/starlette.git",
+        "django": "https://github.com/django/django.git",  # ~6k files, slow
+        # Domain-heavy / worker architecture
+        "celery": "https://github.com/celery/celery.git",
+        "poetry": "https://github.com/python-poetry/poetry.git",
+        "requests": "https://github.com/psf/requests.git",
+        # Smaller / niche
+        "sqlmodel": "https://github.com/fastapi/sqlmodel.git",
+        "uvicorn": "https://github.com/encode/uvicorn.git",
+        "sanic": "https://github.com/sanic-org/sanic.git",
+        # Flat / scientific (expected low AVS)
+        "rich": "https://github.com/Textualize/rich.git",
     }
     for name, url in repos.items():
         path = clone(name, url, tmp)

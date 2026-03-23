@@ -1,0 +1,64 @@
+site_name: Drift — Codebase Coherence Analyzer
+site_url: https://sauremilk.github.io/drift/
+repo_url: https://github.com/sauremilk/drift
+repo_name: sauremilk/drift
+site_description: Detect architectural erosion from AI-generated code
+
+docs_dir: docs-site
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.arithmatex:
+      generic: true
+  - tables
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+  - How It Works:
+      - Algorithm Deep Dive: algorithms/deep-dive.md
+      - Signal Reference: algorithms/signals.md
+      - Scoring Model: algorithms/scoring.md
+  - Case Studies:
+      - Overview: case-studies/index.md
+      - FastAPI: case-studies/fastapi.md
+      - Pydantic: case-studies/pydantic.md
+      - Django: case-studies/django.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md

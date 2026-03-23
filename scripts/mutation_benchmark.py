@@ -103,6 +103,122 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
         "    }\n",
     )
     mds_mutations.append("Near-duplicate: fetch_user_data ~ get_customer_info")
+
+    # Additional MDS mutations: more near-duplicates with subtle variations
+    _write(
+        src / "report_v1.py",
+        "def generate_report(data: list, title: str, format_type: str = 'html') -> str:\n"
+        '    """Generate a report from data."""\n'
+        "    output_lines = []\n"
+        "    output_lines.append(f'<h1>{title}</h1>')\n"
+        "    for item in data:\n"
+        "        if format_type == 'html':\n"
+        "            output_lines.append(f'<p>{item}</p>')\n"
+        "        else:\n"
+        "            output_lines.append(str(item))\n"
+        "    return '\\n'.join(output_lines)\n",
+    )
+    _write(
+        src / "report_v2.py",
+        "def build_report(records: list, heading: str, output_format: str = 'html') -> str:\n"
+        '    """Build a report from records."""\n'
+        "    lines = []\n"
+        "    lines.append(f'<h1>{heading}</h1>')\n"
+        "    for record in records:\n"
+        "        if output_format == 'html':\n"
+        "            lines.append(f'<p>{record}</p>')\n"
+        "        else:\n"
+        "            lines.append(str(record))\n"
+        "    return '\\n'.join(lines)\n",
+    )
+    mds_mutations.append("Near-duplicate: generate_report ~ build_report (renamed params)")
+
+    _write(
+        src / "cache_v1.py",
+        "def get_cached_value(key: str, cache: dict, ttl: int = 300) -> object:\n"
+        '    """Retrieve a value from cache with TTL check."""\n'
+        "    import time\n"
+        "    entry = cache.get(key)\n"
+        "    if entry is None:\n"
+        "        return None\n"
+        "    timestamp, value = entry\n"
+        "    if time.time() - timestamp > ttl:\n"
+        "        del cache[key]\n"
+        "        return None\n"
+        "    return value\n",
+    )
+    _write(
+        src / "cache_v2.py",
+        "def lookup_cache(cache_key: str, store: dict, max_age: int = 300) -> object:\n"
+        '    """Look up a value in the cache store."""\n'
+        "    import time\n"
+        "    item = store.get(cache_key)\n"
+        "    if item is None:\n"
+        "        return None\n"
+        "    created_at, data = item\n"
+        "    if time.time() - created_at > max_age:\n"
+        "        del store[cache_key]\n"
+        "        return None\n"
+        "    return data\n",
+    )
+    mds_mutations.append("Near-duplicate: get_cached_value ~ lookup_cache (renamed vars)")
+
+    _write(
+        src / "serializer_a.py",
+        "def serialize_user(user: dict) -> dict:\n"
+        '    """Serialize user object for API response."""\n'
+        "    result = {}\n"
+        '    result["id"] = user.get("id")\n'
+        '    result["name"] = user.get("name", "")\n'
+        '    result["email"] = user.get("email", "")\n'
+        '    result["active"] = user.get("is_active", True)\n'
+        '    result["created"] = str(user.get("created_at", ""))\n'
+        "    return result\n",
+    )
+    _write(
+        src / "serializer_b.py",
+        "def format_user_response(user_data: dict) -> dict:\n"
+        '    """Format user data for API response."""\n'
+        "    output = {}\n"
+        '    output["id"] = user_data.get("id")\n'
+        '    output["name"] = user_data.get("name", "")\n'
+        '    output["email"] = user_data.get("email", "")\n'
+        '    output["active"] = user_data.get("is_active", True)\n'
+        '    output["created"] = str(user_data.get("created_at", ""))\n'
+        "    return output\n",
+    )
+    mds_mutations.append("Near-duplicate: serialize_user ~ format_user_response")
+
+    _write(
+        src / "retry_a.py",
+        "import time\n\n"
+        "def retry_operation(func, max_retries: int = 3, delay: float = 1.0):\n"
+        '    """Retry a function with exponential backoff."""\n'
+        "    last_error = None\n"
+        "    for attempt in range(max_retries):\n"
+        "        try:\n"
+        "            return func()\n"
+        "        except Exception as e:\n"
+        "            last_error = e\n"
+        "            time.sleep(delay * (2 ** attempt))\n"
+        "    raise last_error\n",
+    )
+    _write(
+        src / "retry_b.py",
+        "import time\n\n"
+        "def with_retries(callable_fn, attempts: int = 3, wait: float = 1.0):\n"
+        '    """Call a function with retry logic."""\n'
+        "    last_exc = None\n"
+        "    for try_num in range(attempts):\n"
+        "        try:\n"
+        "            return callable_fn()\n"
+        "        except Exception as exc:\n"
+        "            last_exc = exc\n"
+        "            time.sleep(wait * (2 ** try_num))\n"
+        "    raise last_exc\n",
+    )
+    mds_mutations.append("Near-duplicate: retry_operation ~ with_retries")
+
     mutations["mutant_duplicate"] = mds_mutations
 
     # =========================================================
@@ -166,6 +282,114 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
     pfs_mutations.append("error_handling: 4 variants in handlers/")
     pfs_mutations.append("return_pattern: 3 variants in models/")
 
+    # Additional PFS mutations: more pattern categories
+    _write(
+        handlers / "validation_a.py",
+        "def validate_age(data: dict) -> bool:\n"
+        "    try:\n"
+        '        age = int(data["age"])\n'
+        "        if age < 0 or age > 150:\n"
+        '            raise ValueError("Invalid age")\n'
+        "        return True\n"
+        "    except (ValueError, KeyError) as e:\n"
+        '        raise ValidationError(str(e)) from e\n',
+    )
+    _write(
+        handlers / "validation_b.py",
+        "def validate_name(data: dict) -> dict:\n"
+        '    errors = []\n'
+        '    if "name" not in data:\n'
+        '        errors.append("name is required")\n'
+        '    elif len(data["name"]) < 2:\n'
+        '        errors.append("name too short")\n'
+        '    return {"valid": len(errors) == 0, "errors": errors}\n',
+    )
+    _write(
+        handlers / "validation_c.py",
+        "import logging\n"
+        "logger = logging.getLogger(__name__)\n\n"
+        "def validate_email(data: dict) -> bool:\n"
+        "    try:\n"
+        '        email = data["email"]\n'
+        '        if "@" not in email:\n'
+        "            return False\n"
+        "        return True\n"
+        "    except KeyError:\n"
+        '        logger.warning("email field missing")\n'
+        "        return False\n",
+    )
+    pfs_mutations.append("error_handling: 3 validation variants in handlers/")
+
+    # More PFS: logging pattern fragmentation in services
+    services = src / "services"
+    services.mkdir(parents=True, exist_ok=True)
+    _write(services / "__init__.py", "")
+    _write(
+        services / "email_service.py",
+        "import logging\n"
+        "logger = logging.getLogger(__name__)\n\n"
+        "def send_email(to: str, subject: str, body: str) -> bool:\n"
+        "    try:\n"
+        '        logger.info(f"Sending email to {to}")\n'
+        "        return True\n"
+        "    except Exception as e:\n"
+        '        logger.exception(f"Email send failed: {e}")\n'
+        "        raise\n",
+    )
+    _write(
+        services / "sms_service.py",
+        "def send_sms(phone: str, message: str) -> bool:\n"
+        "    try:\n"
+        '        print(f"Sending SMS to {phone}")\n'
+        "        return True\n"
+        "    except Exception as e:\n"
+        '        print(f"SMS failed: {e}")\n'
+        "        return False\n",
+    )
+    _write(
+        services / "push_service.py",
+        "import sys\n\n"
+        "def send_push(device_id: str, payload: dict) -> bool:\n"
+        "    try:\n"
+        "        return True\n"
+        "    except Exception:\n"
+        '        sys.stderr.write("Push notification failed\\n")\n'
+        "        return False\n",
+    )
+    pfs_mutations.append("error_handling: 3 notification service variants in services/")
+
+    # PFS: data access pattern fragmentation
+    _write(
+        models / "product.py",
+        "def get_product(product_id: int):\n"
+        '    """Returns product or None."""\n'
+        "    if product_id <= 0:\n"
+        "        return None\n"
+        '    return {"id": product_id, "name": "Widget"}\n',
+    )
+    _write(
+        models / "order.py",
+        "def get_order(order_id: int) -> dict:\n"
+        '    """Returns order or raises."""\n'
+        "    if order_id <= 0:\n"
+        '        raise ValueError("Invalid order_id")\n'
+        '    return {"id": order_id, "items": []}\n\n'
+        "def get_order_result(order_id: int) -> tuple:\n"
+        '    """Returns (order, error) tuple."""\n'
+        "    if order_id <= 0:\n"
+        '        return None, "Invalid order_id"\n'
+        '    return {"id": order_id, "items": []}, None\n',
+    )
+    pfs_mutations.append("return_pattern: 3 data access variants in models/")
+
+    mutations["pattern_fragmentation"] = pfs_mutations
+
+    # =========================================================
+    # EDS: Explainability Deficit - complex undocumented functions
+    # =========================================================
+    eds_mutations = []
+
+    # Original models/user.py (also used by PFS)
     _write(
         models / "user.py",
         "def get_user(user_id: int):\n"
@@ -184,12 +408,6 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
         '        return None, "Invalid user_id"\n'
         '    return {"id": user_id, "name": "Alice"}, None\n',
     )
-    mutations["pattern_fragmentation"] = pfs_mutations
-
-    # =========================================================
-    # EDS: Explainability Deficit - complex undocumented functions
-    # =========================================================
-    eds_mutations = []
 
     complex_code = (
         "def calculate_pricing(items, user, discounts, tax_rules, shipping, region):\n"
@@ -287,6 +505,141 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
     _write(src / "complex_logic.py", complex_code)
     eds_mutations.append("Unexplained complexity: calculate_pricing (CC>=12, no docstring)")
     eds_mutations.append("Unexplained complexity: transform_dataset (CC>=15, no docstring)")
+
+    # Additional EDS mutations: more complex undocumented functions
+    _write(
+        src / "scheduler.py",
+        "def schedule_tasks(tasks, workers, priorities, constraints, deadlines):\n"
+        "    assigned = {w: [] for w in workers}\n"
+        "    for task in sorted(tasks, key=lambda t: priorities.get(t['id'], 0), reverse=True):\n"
+        "        best_worker = None\n"
+        "        best_load = float('inf')\n"
+        "        for worker in workers:\n"
+        "            if worker in constraints.get(task['id'], {}).get('excluded', []):\n"
+        "                continue\n"
+        "            load = sum(t.get('weight', 1) for t in assigned[worker])\n"
+        "            if load < best_load:\n"
+        "                best_load = load\n"
+        "                best_worker = worker\n"
+        "        if best_worker is not None:\n"
+        "            deadline = deadlines.get(task['id'])\n"
+        "            if deadline and len(assigned[best_worker]) > 5:\n"
+        "                assigned[best_worker].insert(0, task)\n"
+        "            else:\n"
+        "                assigned[best_worker].append(task)\n"
+        "    return assigned\n",
+    )
+    eds_mutations.append("Unexplained complexity: schedule_tasks (CC>=10, no docstring)")
+
+    _write(
+        src / "reconciler.py",
+        "def reconcile_accounts(local_records, remote_records, rules, tolerances):\n"
+        "    mismatches = []\n"
+        "    matched = set()\n"
+        "    for local in local_records:\n"
+        "        for remote in remote_records:\n"
+        "            if remote['id'] in matched:\n"
+        "                continue\n"
+        "            if local.get('ref') == remote.get('ref'):\n"
+        "                diff = abs(local.get('amount', 0) - remote.get('amount', 0))\n"
+        "                tolerance = tolerances.get(local.get('type'), 0.01)\n"
+        "                if diff > tolerance:\n"
+        "                    if rules.get('strict'):\n"
+        "                        mismatches.append({'local': local, 'remote': remote, 'diff': diff})\n"
+        "                    elif diff > tolerance * 10:\n"
+        "                        mismatches.append({'local': local, 'remote': remote, 'diff': diff})\n"
+        "                matched.add(remote['id'])\n"
+        "                break\n"
+        "    unmatched_local = [r for r in local_records if r.get('ref') not in {rm.get('ref') for rm in remote_records}]\n"
+        "    unmatched_remote = [r for r in remote_records if r['id'] not in matched]\n"
+        "    return {'mismatches': mismatches, 'unmatched_local': unmatched_local, 'unmatched_remote': unmatched_remote}\n",
+    )
+    eds_mutations.append("Unexplained complexity: reconcile_accounts (CC>=10, no docstring)")
+
+    _write(
+        src / "migration.py",
+        "def migrate_schema(tables, column_defs, constraints, indexes, dry_run=False):\n"
+        "    operations = []\n"
+        "    for table_name, columns in tables.items():\n"
+        "        for col_name, col_spec in columns.items():\n"
+        "            new_spec = column_defs.get(table_name, {}).get(col_name)\n"
+        "            if new_spec is None:\n"
+        "                operations.append(('drop_column', table_name, col_name))\n"
+        "            elif new_spec != col_spec:\n"
+        "                if new_spec.get('type') != col_spec.get('type'):\n"
+        "                    operations.append(('alter_column', table_name, col_name, new_spec))\n"
+        "                elif new_spec.get('nullable') != col_spec.get('nullable'):\n"
+        "                    operations.append(('alter_null', table_name, col_name, new_spec))\n"
+        "        for col_name, new_spec in column_defs.get(table_name, {}).items():\n"
+        "            if col_name not in columns:\n"
+        "                operations.append(('add_column', table_name, col_name, new_spec))\n"
+        "    for table_name, idx_list in indexes.items():\n"
+        "        for idx in idx_list:\n"
+        "            if idx.get('unique'):\n"
+        "                operations.append(('create_unique_index', table_name, idx))\n"
+        "            else:\n"
+        "                operations.append(('create_index', table_name, idx))\n"
+        "    if dry_run:\n"
+        "        return operations\n"
+        "    return [('execute', op) for op in operations]\n",
+    )
+    eds_mutations.append("Unexplained complexity: migrate_schema (CC>=12, no docstring)")
+
+    _write(
+        src / "event_router.py",
+        "def route_events(events, handlers, middleware, fallback_handler):\n"
+        "    results = []\n"
+        "    for event in events:\n"
+        "        handled = False\n"
+        "        for mw in middleware:\n"
+        "            event = mw(event)\n"
+        "            if event is None:\n"
+        "                handled = True\n"
+        "                break\n"
+        "        if handled:\n"
+        "            continue\n"
+        "        for pattern, handler in handlers.items():\n"
+        "            if event.get('type') == pattern or pattern == '*':\n"
+        "                try:\n"
+        "                    result = handler(event)\n"
+        "                    results.append(result)\n"
+        "                    handled = True\n"
+        "                except Exception as e:\n"
+        "                    results.append({'error': str(e), 'event': event})\n"
+        "                    handled = True\n"
+        "                break\n"
+        "        if not handled and fallback_handler:\n"
+        "            results.append(fallback_handler(event))\n"
+        "    return results\n",
+    )
+    eds_mutations.append("Unexplained complexity: route_events (CC>=10, no docstring)")
+
+    _write(
+        src / "permission_checker.py",
+        "def check_permissions(user, resource, action, policies, overrides):\n"
+        "    if user.get('role') == 'admin':\n"
+        "        return True\n"
+        "    override = overrides.get(user.get('id'), {}).get(resource)\n"
+        "    if override is not None:\n"
+        "        return override\n"
+        "    for policy in policies:\n"
+        "        if policy.get('resource') != resource:\n"
+        "            continue\n"
+        "        if action not in policy.get('actions', []):\n"
+        "            continue\n"
+        "        if policy.get('role') and policy['role'] != user.get('role'):\n"
+        "            continue\n"
+        "        if policy.get('condition') == 'owner':\n"
+        "            if user.get('id') != resource.get('owner_id'):\n"
+        "                continue\n"
+        "        elif policy.get('condition') == 'department':\n"
+        "            if user.get('dept') != resource.get('dept'):\n"
+        "                continue\n"
+        "        return policy.get('allow', True)\n"
+        "    return False\n",
+    )
+    eds_mutations.append("Unexplained complexity: check_permissions (CC>=10, no docstring)")
+
     mutations["explainability_deficit"] = eds_mutations
 
     # =========================================================
@@ -312,6 +665,44 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
         "    return enrich_user_model(user_id)\n",
     )
     avs_mutations.append("Transitive violation: utils/ -> models/ -> handlers/")
+
+    # Additional AVS mutations
+    _write(
+        models / "analytics.py",
+        "from src.myapp.handlers.payments import process_payment\n\n"
+        "def enrich_analytics(data: dict) -> dict:\n"
+        '    result = process_payment(data.get("amount", 0))\n'
+        '    data["payment_result"] = result\n'
+        "    return data\n",
+    )
+    avs_mutations.append("Upward import: models/analytics.py imports from handlers/payments")
+
+    _write(
+        models / "report.py",
+        "from src.myapp.handlers.notifications import send_notification\n\n"
+        "def generate_and_notify(user_id: int, report: dict) -> bool:\n"
+        '    return send_notification(user_id, str(report))\n',
+    )
+    avs_mutations.append("Upward import: models/report.py imports from handlers/notifications")
+
+    # Circular dependency
+    _write(
+        handlers / "shared.py",
+        "from src.myapp.handlers.auth import login\n\n"
+        "def get_auth_token(user: str) -> dict:\n"
+        '    return login(user, "default")\n',
+    )
+    _write(
+        src / "services" / "user_ops.py",
+        "from src.myapp.handlers.shared import get_auth_token\n"
+        "from src.myapp.models.user import get_user\n\n"
+        "def authenticated_user(user_id: int) -> dict:\n"
+        "    user = get_user(user_id)\n"
+        '    token = get_auth_token(user.get("name", ""))\n'
+        "    return {**user, **token}\n",
+    )
+    avs_mutations.append("Cross-layer: services/ imports from handlers/ (upward)")
+
     mutations["architecture_violation"] = avs_mutations
 
     # =========================================================
@@ -332,6 +723,28 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
         "    return raw\n",
     )
     sms_mutations.append("Novel deps: outlier_module.py uses ctypes/struct/mmap in web app")
+
+    _write(
+        src / "ml_predictor.py",
+        "import tensorflow as tf\nimport pandas as pd\nimport scipy\n"
+        "import numpy as np\n\n"
+        "def predict_churn(user_data: dict) -> float:\n"
+        "    features = np.array([user_data.get('age', 0), user_data.get('tenure', 0)])\n"
+        "    return float(features.mean())\n",
+    )
+    sms_mutations.append("Novel deps: ml_predictor.py uses tensorflow/pandas/scipy in web app")
+
+    _write(
+        src / "crypto_util.py",
+        "import hmac\nimport secrets\nimport ssl\n"
+        "from cryptography.fernet import Fernet\n\n"
+        "def encrypt_payload(data: bytes) -> bytes:\n"
+        "    key = Fernet.generate_key()\n"
+        "    f = Fernet(key)\n"
+        "    return f.encrypt(data)\n",
+    )
+    sms_mutations.append("Novel deps: crypto_util.py uses cryptography/ssl/hmac in web app")
+
     mutations["system_misalignment"] = sms_mutations
 
     # Add "normal" modules to establish baseline for SMS comparison
@@ -366,6 +779,23 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
     dia_mutations.append("Phantom dir: README references views/ (does not exist)")
     dia_mutations.append("Phantom dir: README references middleware/ (does not exist)")
     dia_mutations.append("Phantom dir: README references plugins/ (does not exist)")
+
+    # Additional DIA: ADR file with outdated claims
+    adr_dir = repo_dir / "docs" / "adr"
+    adr_dir.mkdir(parents=True, exist_ok=True)
+    _write(
+        adr_dir / "001-architecture.md",
+        "# ADR 001: Architecture\n\n"
+        "## Decision\n\n"
+        "The project uses a layered architecture:\n\n"
+        "- `src/myapp/controllers/` — HTTP controllers\n"
+        "- `src/myapp/repositories/` — Data access layer\n"
+        "- `src/myapp/domain/` — Domain entities\n",
+    )
+    dia_mutations.append("Phantom dir: ADR references controllers/ (does not exist)")
+    dia_mutations.append("Phantom dir: ADR references repositories/ (does not exist)")
+    dia_mutations.append("Phantom dir: ADR references domain/ (does not exist)")
+
     mutations["doc_impl_drift"] = dia_mutations
 
     # =========================================================
@@ -405,6 +835,28 @@ def _create_synthetic_repo(repo_dir: Path) -> dict[str, list[str]]:
             env=env,
         )
     tvs_mutations.append("High volatility: hotspot.py (10 commits in 10 days)")
+
+    # Additional TVS: another volatile file
+    hotspot2 = src / "config_hotspot.py"
+    for i in range(8):
+        hotspot2.write_text(
+            f"# Config v{i}\nSETTINGS = {{'version': {i}, 'debug': {i % 2 == 0}}}\n\n"
+            f"def get_config():\n    return SETTINGS\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", str(hotspot2)], cwd=repo_dir, capture_output=True)
+        commit_date = (base_date + timedelta(days=i)).strftime("%Y-%m-%dT14:00:00")
+        env = os.environ.copy()
+        env["GIT_AUTHOR_DATE"] = commit_date
+        env["GIT_COMMITTER_DATE"] = commit_date
+        subprocess.run(
+            ["git", "commit", "-m", f"Update config v{i}"],
+            cwd=repo_dir,
+            capture_output=True,
+            env=env,
+        )
+    tvs_mutations.append("High volatility: config_hotspot.py (8 commits in 8 days)")
+
     mutations["temporal_volatility"] = tvs_mutations
 
     # Test files
@@ -476,7 +928,11 @@ def _check_detection(mutations, findings):
             ]
             count = min(len(hits), len(injected))
         elif signal == "explainability_deficit":
-            targets = ["calculate_pricing", "transform_dataset"]
+            targets = [
+                "calculate_pricing", "transform_dataset",
+                "schedule_tasks", "reconcile_accounts",
+                "migrate_schema", "route_events", "check_permissions",
+            ]
             count = sum(1 for n in targets if any(n in f.get("title", "") for f in detected))
         else:
             count = min(len(detected), len(injected))

@@ -48,7 +48,7 @@ dependencies = [
 Homepage = "https://github.com/sauremilk/drift"
 Repository = "https://github.com/sauremilk/drift"
 Issues = "https://github.com/sauremilk/drift/issues"
-Documentation = "https://github.com/sauremilk/drift/blob/master/STUDY.md"
+Documentation = "https://sauremilk.github.io/drift/"
 Changelog = "https://github.com/sauremilk/drift/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]

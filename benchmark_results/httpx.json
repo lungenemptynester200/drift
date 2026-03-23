@@ -5,9 +5,9 @@
   "files": 60,
   "functions": 1134,
   "ai_ratio": 0.0,
-  "analysis_s": 3.39,
-  "wall_s": 3.86,
-  "findings": 30,
+  "analysis_s": 3.61,
+  "wall_s": 4.21,
+  "findings": 36,
   "signals": {},
   "top5": [
     {
@@ -20,25 +20,25 @@
       "sig": "mutant_duplicate",
       "sev": "high",
       "score": 0.9,
-      "title": "Exact duplicate: DeflateDecoder.flush \u2194 GZipDecoder.flush"
+      "title": "Exact duplicates (2\u00d7): DeflateDecoder.flush, GZipDecoder.flush"
     },
     {
       "sig": "mutant_duplicate",
       "sev": "high",
       "score": 0.9,
-      "title": "Exact duplicate: streaming_body_with_empty_chunks \u2194 streaming_body_with_empty_chunks"
+      "title": "Exact duplicates (2\u00d7): streaming_body_with_empty_chunks"
     },
     {
       "sig": "mutant_duplicate",
       "sev": "high",
-      "score": 0.8411688311688311,
-      "title": "Near-duplicate (99%): HTTPTransport.__init__ \u2194 AsyncHTTPTransport.__init__"
+      "score": 0.85,
+      "title": "Near-duplicate (100%): get \u2194 options"
     },
     {
       "sig": "mutant_duplicate",
       "sev": "high",
-      "score": 0.8245635910224438,
-      "title": "Near-duplicate (97%): Client.__init__ \u2194 AsyncClient.__init__"
+      "score": 0.85,
+      "title": "Near-duplicate (100%): get \u2194 head"
     }
   ]
 }

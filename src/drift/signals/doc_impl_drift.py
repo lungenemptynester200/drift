@@ -263,6 +263,9 @@ class DocImplDriftSignal(BaseSignal):
         # Collect actual top-level source directories that contain .py files
         source_dirs = self._source_directories(parse_results)
 
+        # Collect actual import graph modules for ADR validation
+        actual_imports = self._actual_import_modules(parse_results)
+
         # Extract directory names using Markdown AST parsing
         referenced_dirs = _extract_dir_refs_from_ast(readme_text)
 
@@ -272,7 +275,9 @@ class DocImplDriftSignal(BaseSignal):
                 continue
 
             candidate = self._repo_path / ref
-            if not candidate.exists() and ref.lower() not in {d.lower() for d in source_dirs}:
+            if not candidate.exists() and ref.lower() not in {
+                d.lower() for d in source_dirs
+            }:
                 findings.append(
                     Finding(
                         signal_type=self.signal_type,
@@ -280,8 +285,8 @@ class DocImplDriftSignal(BaseSignal):
                         score=0.3,
                         title=f"README references missing directory: {ref}/",
                         description=(
-                            f"README mentions '{ref}/' but no such directory exists. "
-                            f"Documentation may be outdated."
+                            f"README mentions '{ref}/' but no such directory"
+                            f" exists. Documentation may be outdated."
                         ),
                         file_path=readme_path.relative_to(self._repo_path),
                         fix=f"Entferne '{ref}/' aus README oder lege das Verzeichnis an.",
@@ -299,7 +304,10 @@ class DocImplDriftSignal(BaseSignal):
                             signal_type=self.signal_type,
                             severity=Severity.INFO,
                             score=0.15,
-                            title=f"Source directory not mentioned in README: {src_dir}/",
+                            title=(
+                                f"Source directory not mentioned in README:"
+                                f" {src_dir}/"
+                            ),
                             description=(
                                 f"Directory '{src_dir}/' contains source files "
                                 f"but is not mentioned in README."
@@ -312,6 +320,73 @@ class DocImplDriftSignal(BaseSignal):
                             metadata={"undocumented_dir": src_dir},
                         )
                     )
+
+        # ── ADR / architecture doc scanning ──
+        findings.extend(
+            self._scan_adr_files(parse_results, source_dirs, actual_imports)
+        )
+
+        return findings
+
+    def _scan_adr_files(
+        self,
+        parse_results: list[ParseResult],
+        source_dirs: set[str],
+        actual_imports: set[str],
+    ) -> list[Finding]:
+        """Scan ADR and architecture docs for stale directory claims."""
+        findings: list[Finding] = []
+        adr_dirs = [
+            self._repo_path / "docs" / "adr",
+            self._repo_path / "docs" / "adrs",
+            self._repo_path / "adr",
+            self._repo_path / "docs" / "architecture",
+        ]
+
+        for adr_dir in adr_dirs:
+            if not adr_dir.is_dir():
+                continue
+            for md_file in sorted(adr_dir.glob("*.md")):
+                try:
+                    text = md_file.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                refs = _extract_dir_refs_from_ast(text)
+                for ref in sorted(refs):
+                    if _is_url_segment(ref):
+                        continue
+                    candidate = self._repo_path / ref
+                    if not candidate.exists() and ref.lower() not in {
+                        d.lower() for d in source_dirs
+                    }:
+                        try:
+                            rel_path = md_file.relative_to(self._repo_path)
+                        except ValueError:
+                            rel_path = md_file
+                        findings.append(
+                            Finding(
+                                signal_type=self.signal_type,
+                                severity=Severity.MEDIUM,
+                                score=0.4,
+                                title=(
+                                    f"ADR references missing directory:"
+                                    f" {ref}/"
+                                ),
+                                description=(
+                                    f"{rel_path} mentions '{ref}/' but no"
+                                    f" such directory exists."
+                                ),
+                                file_path=rel_path,
+                                fix=(
+                                    f"Aktualisiere {rel_path.name}:"
+                                    f" '{ref}/' existiert nicht mehr."
+                                ),
+                                metadata={
+                                    "referenced_dir": ref,
+                                    "adr_file": rel_path.as_posix(),
+                                },
+                            )
+                        )
 
         return findings
 
@@ -330,3 +405,15 @@ class DocImplDriftSignal(BaseSignal):
             if len(parts) > 1:
                 dirs.add(parts[0])
         return dirs
+
+    def _actual_import_modules(
+        self, parse_results: list[ParseResult]
+    ) -> set[str]:
+        """Return the set of top-level module names actually imported."""
+        modules: set[str] = set()
+        for pr in parse_results:
+            for imp in pr.imports:
+                top = imp.imported_module.split(".")[0]
+                if top:
+                    modules.add(top)
+        return modules

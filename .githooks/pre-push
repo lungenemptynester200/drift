@@ -5,6 +5,11 @@ set -e
 
 echo ">>> [pre-push] Starting local CI checks..."
 
+# Unset git context variables that git injects when running hooks.
+# Without this, tests that create git repos in tmp dirs inherit GIT_DIR
+# from the parent repo and fail with exit 128 ("not a git repository").
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
+
 # 1. Version format (SemVer)
 echo ">>> [1/4] Checking SemVer version..."
 python scripts/check_version.py --check-semver

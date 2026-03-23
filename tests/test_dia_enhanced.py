@@ -35,6 +35,13 @@ class TestMarkdownAstExtraction:
         refs = _extract_dir_refs_from_ast(md)
         assert "src" in refs
 
+    def test_fenced_code_block_skipped(self):
+        """Fenced code blocks are skipped — they contain example code, not structure claims."""
+        md = "# Project\n\n```bash\ncd internal/deploy/\n```\n"
+        refs = _extract_dir_refs_from_ast(md)
+        assert "internal" not in refs
+        assert "deploy" not in refs
+
     def test_plain_text_dir_ref(self):
         md = "The backend/ folder contains the API."
         refs = _extract_dir_refs_from_ast(md)
@@ -81,3 +88,88 @@ The `frontend/` directory has the UI.
         md = "This is a simple readme with no directory references."
         refs = _extract_dir_refs_from_ast(md)
         assert refs == set()
+
+
+class TestAdrScanning:
+    """Test ADR file scanning for phantom directory references."""
+
+    def test_adr_phantom_dir_detected(self, tmp_path):
+        """ADR referencing non-existent dir should produce a finding."""
+        from drift.config import DriftConfig
+        from drift.ingestion.ast_parser import parse_file
+        from drift.ingestion.file_discovery import discover_files
+        from drift.models import FileHistory
+        from drift.signals.doc_impl_drift import DocImplDriftSignal
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "README.md").write_text("# Project\n\n- `src/` — code\n")
+        (repo / "src").mkdir()
+        (repo / "src" / "__init__.py").write_text("")
+        (repo / "src" / "main.py").write_text("def main(): pass\n")
+
+        adr_dir = repo / "docs" / "adr"
+        adr_dir.mkdir(parents=True)
+        (adr_dir / "001.md").write_text(
+            "# ADR 001\n\n- `controllers/` — HTTP layer\n"
+            "- `repositories/` — data access\n"
+        )
+
+        config = DriftConfig(
+            include=["**/*.py"],
+            exclude=["**/__pycache__/**"],
+        )
+        files = discover_files(repo, config.include, config.exclude)
+        parse_results = []
+        for finfo in files:
+            pr = parse_file(finfo.path, repo, finfo.language)
+            parse_results.append(pr)
+
+        signal = DocImplDriftSignal(repo_path=repo)
+        findings = signal.analyze(parse_results, {}, config)
+
+        adr_findings = [
+            f for f in findings if "ADR" in f.title
+        ]
+        referenced_dirs = {
+            f.metadata.get("referenced_dir") for f in adr_findings
+        }
+        assert "controllers" in referenced_dirs
+        assert "repositories" in referenced_dirs
+
+    def test_adr_existing_dirs_no_finding(self, tmp_path):
+        """ADR referencing existing dirs should NOT produce findings."""
+        from drift.config import DriftConfig
+        from drift.ingestion.ast_parser import parse_file
+        from drift.ingestion.file_discovery import discover_files
+        from drift.signals.doc_impl_drift import DocImplDriftSignal
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "README.md").write_text("# Project\n\n- `src/` — code\n")
+        (repo / "src").mkdir()
+        (repo / "src" / "__init__.py").write_text("")
+
+        adr_dir = repo / "docs" / "adr"
+        adr_dir.mkdir(parents=True)
+        (adr_dir / "001.md").write_text(
+            "# ADR 001\n\n- `src/` — main source code\n"
+        )
+
+        config = DriftConfig(
+            include=["**/*.py"],
+            exclude=["**/__pycache__/**"],
+        )
+        files = discover_files(repo, config.include, config.exclude)
+        parse_results = []
+        for finfo in files:
+            pr = parse_file(finfo.path, repo, finfo.language)
+            parse_results.append(pr)
+
+        signal = DocImplDriftSignal(repo_path=repo)
+        findings = signal.analyze(parse_results, {}, config)
+
+        adr_findings = [
+            f for f in findings if "ADR" in f.title
+        ]
+        assert len(adr_findings) == 0

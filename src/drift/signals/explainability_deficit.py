@@ -96,10 +96,10 @@ class ExplainabilityDeficitSignal(BaseSignal):
                                 test_targets.add(other.name)
 
         # Resolve thresholds from config
-        medium_complexity = MEDIUM_COMPLEXITY
+        min_complexity = MEDIUM_COMPLEXITY
         min_func_loc = 10
         if hasattr(config, "thresholds"):
-            medium_complexity = config.thresholds.medium_complexity
+            min_complexity = config.thresholds.min_complexity
             min_func_loc = config.thresholds.min_function_loc
 
         findings: list[Finding] = []
@@ -108,8 +108,11 @@ class ExplainabilityDeficitSignal(BaseSignal):
             # Skip test files and trivial functions
             if "test" in func.file_path.as_posix().lower():
                 continue
-            if func.complexity < medium_complexity:
+            # Primary gate: cyclomatic complexity (better proxy for
+            # "needs explanation" than raw LOC)
+            if func.complexity < min_complexity:
                 continue
+            # Secondary gate: skip very short functions even if complex
             if func.loc < min_func_loc:
                 continue
 
@@ -160,9 +163,13 @@ class ExplainabilityDeficitSignal(BaseSignal):
             if not func.return_type:
                 missing.append("Return-Type")
             fix = (
-                f"Funktion {func.name} (Complexity {func.complexity}): "
-                f"Füge {', '.join(missing)} hinzu."
-            ) if missing else None
+                (
+                    f"Funktion {func.name} (Complexity {func.complexity}): "
+                    f"Füge {', '.join(missing)} hinzu."
+                )
+                if missing
+                else None
+            )
 
             findings.append(
                 Finding(

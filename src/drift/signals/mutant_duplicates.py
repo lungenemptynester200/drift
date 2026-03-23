@@ -144,6 +144,10 @@ class MutantDuplicateSignal(BaseSignal):
         file_histories: dict[str, FileHistory],
         config: DriftConfig,
     ) -> list[Finding]:
+        # Use config threshold if available, otherwise module default
+        ast_threshold = config.thresholds.similarity_threshold
+        hybrid_threshold = max(ast_threshold - 0.05, 0.60)
+
         functions: list[FunctionInfo] = []
         for pr in parse_results:
             for fn in pr.functions:
@@ -262,7 +266,7 @@ class MutantDuplicateSignal(BaseSignal):
 
         sorted_buckets = sorted(loc_buckets.keys())
         use_hybrid = bool(embedding_cache)
-        threshold = _HYBRID_THRESHOLD if use_hybrid else SIMILARITY_THRESHOLD
+        threshold = hybrid_threshold if use_hybrid else ast_threshold
 
         for i, bucket_key in enumerate(sorted_buckets):
             candidates = list(loc_buckets[bucket_key])
@@ -370,6 +374,7 @@ class MutantDuplicateSignal(BaseSignal):
                     ngram_cache,
                     checked,
                     emb,
+                    ast_threshold,
                 )
             )
 
@@ -383,6 +388,7 @@ class MutantDuplicateSignal(BaseSignal):
         ngram_cache: dict[str, list[tuple[str, ...]] | None],
         checked: set[tuple[str, ...]],
         emb: EmbeddingService,
+        ast_threshold: float = 0.80,
     ) -> list[Finding]:
         """Find high-embedding-similarity pairs that structural checks miss."""
         findings: list[Finding] = []
@@ -422,7 +428,7 @@ class MutantDuplicateSignal(BaseSignal):
                 ng_a = ngram_cache.get(key_a)
                 ng_b = ngram_cache.get(key_b)
                 ast_sim = _structural_similarity(ng_a, ng_b)
-                if ast_sim >= SIMILARITY_THRESHOLD:
+                if ast_sim >= ast_threshold:
                     continue
 
                 findings.append(

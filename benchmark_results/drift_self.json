@@ -1,13 +1,13 @@
 {
   "name": "drift_self",
-  "drift_score": 0.437,
+  "drift_score": 0.514,
   "severity": "medium",
-  "files": 56,
-  "functions": 342,
+  "files": 66,
+  "functions": 436,
   "ai_ratio": 0.0,
-  "analysis_s": 0.16,
-  "wall_s": 0.64,
-  "findings": 74,
+  "analysis_s": 0.42,
+  "wall_s": 1.03,
+  "findings": 80,
   "signals": {},
   "top5": [
     {

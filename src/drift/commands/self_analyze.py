@@ -1,0 +1,61 @@
+"""drift self — self-analysis of drift's own codebase."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import click
+from rich.console import Console
+
+from drift.commands import console
+
+
+@click.command(name="self")
+@click.option("--since", "-s", default=90, type=int, help="Days of git history to analyze.")
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    type=click.Choice(["rich", "json", "sarif"]),
+    default="rich",
+    help="Output format.",
+)
+def self_analyze(since: int, output_format: str) -> None:
+    """Analyze Drift's own codebase — proof-of-concept demo."""
+    from drift.analyzer import analyze_repo
+    from drift.config import DriftConfig
+
+    # Locate drift's own source tree (package root -> src/drift -> repo)
+    drift_root = Path(__file__).resolve().parent.parent.parent.parent
+    if not (drift_root / "pyproject.toml").exists():
+        console.print("[red]Could not locate drift repository root.[/red]")
+        sys.exit(1)
+
+    cfg = DriftConfig.load(drift_root)
+
+    info_console = Console(stderr=True) if output_format != "rich" else console
+    info_console.print(f"[bold]drift self[/bold] — analyzing drift's own codebase ({drift_root})")
+    info_console.print()
+
+    with info_console.status("[bold blue]Running self-analysis..."):
+        analysis = analyze_repo(drift_root, cfg, since_days=since)
+
+    if output_format == "json":
+        from drift.output.json_output import analysis_to_json
+
+        click.echo(analysis_to_json(analysis))
+    elif output_format == "sarif":
+        from drift.output.json_output import findings_to_sarif
+
+        click.echo(findings_to_sarif(analysis))
+    else:
+        from drift.output.rich_output import render_full_report, render_recommendations
+
+        render_full_report(analysis, console)
+
+        from drift.recommendations import generate_recommendations
+
+        recs = generate_recommendations(analysis.findings)
+        if recs:
+            render_recommendations(recs, console)

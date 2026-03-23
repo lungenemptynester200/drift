@@ -1,0 +1,75 @@
+"""drift badge — generate shields.io badge URL."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import click
+
+from drift.commands import console
+
+
+@click.command()
+@click.option(
+    "--repo",
+    "-r",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=".",
+)
+@click.option("--since", "-s", default=90, type=int, help="Days of git history to analyze.")
+@click.option("--config", "-c", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--style",
+    type=click.Choice(["flat", "flat-square", "for-the-badge", "plastic"]),
+    default="flat",
+    help="shields.io badge style.",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write badge SVG URL to file (for CI artifacts).",
+)
+def badge(repo: Path, since: int, config: Path | None, style: str, output: Path | None) -> None:
+    """Generate a shields.io badge URL for the repository drift score."""
+    from urllib.parse import quote
+
+    from drift.analyzer import analyze_repo
+    from drift.config import DriftConfig
+
+    cfg = DriftConfig.load(repo, config)
+
+    with console.status("[bold blue]Analyzing for badge..."):
+        analysis = analyze_repo(repo, cfg, since_days=since)
+
+    score = analysis.drift_score
+    if score >= 0.6:
+        color = "critical"
+    elif score >= 0.4:
+        color = "orange"
+    elif score >= 0.2:
+        color = "yellow"
+    else:
+        color = "brightgreen"
+
+    label = quote("drift score")
+    value = quote(f"{score:.2f}")
+    url = f"https://img.shields.io/badge/{label}-{value}-{color}?style={style}"
+
+    md_snippet = f"[![Drift Score]({url})](https://github.com/sauremilk/drift)"
+
+    if output:
+        output.write_text(url, encoding="utf-8")
+        console.print(f"Badge URL written to {output}")
+
+    console.print()
+    console.print("[bold]Drift Badge[/bold]")
+    console.print()
+    console.print(f"  Score: [bold]{score:.2f}[/bold]  ({analysis.severity.value})")
+    console.print()
+    console.print("[dim]URL:[/dim]")
+    click.echo(f"  {url}")
+    console.print()
+    console.print("[dim]Markdown:[/dim]")
+    click.echo(f"  {md_snippet}")

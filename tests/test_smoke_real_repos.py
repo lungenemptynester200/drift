@@ -168,7 +168,7 @@ EXTERNAL_REPOS = [
         "https://github.com/psf/requests.git",
         0.05,  # similar to httpx, small focused library
         0.60,
-        8,   # core requests/ package
+        8,  # core requests/ package
         {SignalType.EXPLAINABILITY_DEFICIT},
         120,
     ),
@@ -178,7 +178,7 @@ EXTERNAL_REPOS = [
         "https://github.com/fastapi/fastapi.git",
         0.15,  # expect moderate drift (docs_src now excluded by default)
         0.75,
-        30,   # core fastapi/ package without docs_src
+        30,  # core fastapi/ package without docs_src
         {SignalType.PATTERN_FRAGMENTATION},
         120,
     ),
@@ -197,7 +197,7 @@ EXTERNAL_REPOS = [
         "https://github.com/pydantic/pydantic.git",
         0.15,  # complex metaclass internals, many model patterns
         0.75,
-        30,   # core pydantic/ package
+        30,  # core pydantic/ package
         {SignalType.EXPLAINABILITY_DEFICIT},
         120,
     ),
@@ -206,7 +206,7 @@ EXTERNAL_REPOS = [
         "https://github.com/fastapi/sqlmodel.git",
         0.10,  # small, from fastapi author → cross-repo comparison
         0.65,
-        5,    # small core
+        5,  # small core
         set(),  # no specific signal expectation — exploratory
         120,
     ),
@@ -221,9 +221,7 @@ class TestExternalRepos:
     def repo_analysis(
         self, request: pytest.FixtureRequest, tmp_path: Path
     ) -> tuple[str, RepoAnalysis]:
-        name, url, score_min, score_max, min_files, expected_signals, clone_timeout = (
-            request.param
-        )
+        name, url, score_min, score_max, min_files, expected_signals, clone_timeout = request.param
         clone_dir = tmp_path / name
         try:
             _shallow_clone(url, clone_dir, timeout=clone_timeout)

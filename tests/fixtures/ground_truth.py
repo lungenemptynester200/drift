@@ -641,24 +641,452 @@ DIA_TRUE_NEGATIVE = GroundTruthFixture(
 )
 
 
+# ── Additional PFS fixtures ───────────────────────────────────────────────
+
+PFS_VALIDATION_TP = GroundTruthFixture(
+    name="pfs_validation_tp",
+    description="Multiple validation patterns in one module → should fire PFS",
+    files={
+        "validators/__init__.py": "",
+        "validators/input_validator.py": """\
+            def validate_email(email: str) -> bool:
+                try:
+                    if "@" not in email:
+                        raise ValueError("Invalid email")
+                    return True
+                except ValueError as e:
+                    raise AppError(str(e)) from e
+        """,
+        "validators/form_validator.py": """\
+            def validate_form(data: dict) -> dict:
+                result = {"valid": True, "errors": []}
+                if not data.get("name"):
+                    result["valid"] = False
+                    result["errors"].append("name required")
+                return result
+        """,
+        "validators/api_validator.py": """\
+            import logging
+            logger = logging.getLogger(__name__)
+
+            def validate_request(req):
+                try:
+                    assert req.get("method"), "method required"
+                    assert req.get("path"), "path required"
+                except AssertionError as e:
+                    logger.warning("Validation failed: %s", e)
+                    return None
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.PATTERN_FRAGMENTATION,
+            file_path="validators/",
+            should_detect=True,
+            description="3 different error-handling patterns in validators/",
+        ),
+    ],
+)
+
+PFS_LOGGING_TP = GroundTruthFixture(
+    name="pfs_logging_tp",
+    description="Multiple logging patterns in one module → should fire PFS",
+    files={
+        "workers/__init__.py": "",
+        "workers/task_a.py": """\
+            import logging
+            logger = logging.getLogger(__name__)
+
+            def run_task_a():
+                try:
+                    do_work()
+                except Exception as e:
+                    logger.exception("Task A failed")
+                    raise
+        """,
+        "workers/task_b.py": """\
+            def run_task_b():
+                try:
+                    do_work()
+                except Exception as e:
+                    print(f"Error in task B: {e}")
+                    return None
+        """,
+        "workers/task_c.py": """\
+            import sys
+
+            def run_task_c():
+                try:
+                    do_work()
+                except Exception:
+                    sys.stderr.write("task_c error\\n")
+                    sys.exit(1)
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.PATTERN_FRAGMENTATION,
+            file_path="workers/",
+            should_detect=True,
+            description="3 different error-handling/logging patterns in workers/",
+        ),
+    ],
+)
+
+
+# ── Additional MDS fixtures ──────────────────────────────────────────────
+
+MDS_NEAR_DUPLICATE_TP = GroundTruthFixture(
+    name="mds_near_dup_tp",
+    description="Near-duplicate functions with renamed variables → should fire MDS",
+    files={
+        "services/__init__.py": "",
+        "services/user_service.py": """\
+            def fetch_user_data(user_id: int, db_session) -> dict:
+                \"\"\"Fetch user data from database.\"\"\"
+                query = f"SELECT * FROM users WHERE id = {user_id}"
+                result = db_session.execute(query)
+                rows = result.fetchall()
+                if not rows:
+                    return {"error": "not found", "user_id": user_id}
+                user = rows[0]
+                return {
+                    "id": user["id"],
+                    "name": user["name"],
+                    "email": user["email"],
+                    "created_at": str(user["created_at"]),
+                }
+        """,
+        "services/customer_service.py": """\
+            def get_customer_info(customer_id: int, session) -> dict:
+                \"\"\"Get customer info from database.\"\"\"
+                sql = f"SELECT * FROM users WHERE id = {customer_id}"
+                res = session.execute(sql)
+                records = res.fetchall()
+                if not records:
+                    return {"error": "not found", "customer_id": customer_id}
+                customer = records[0]
+                return {
+                    "id": customer["id"],
+                    "name": customer["name"],
+                    "email": customer["email"],
+                    "created_at": str(customer["created_at"]),
+                }
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.MUTANT_DUPLICATE,
+            file_path="services/",
+            should_detect=True,
+            description="Near-duplicate with renamed variables across files",
+        ),
+    ],
+)
+
+MDS_EXACT_TRIPLE_TP = GroundTruthFixture(
+    name="mds_exact_triple_tp",
+    description="Three identical copies of the same function → should fire MDS",
+    files={
+        "lib/__init__.py": "",
+        "lib/module_a.py": """\
+            def compute_hash(data: str, algorithm: str = "sha256") -> str:
+                \"\"\"Compute hash of data.\"\"\"
+                import hashlib
+                if algorithm == "sha256":
+                    return hashlib.sha256(data.encode()).hexdigest()
+                elif algorithm == "md5":
+                    return hashlib.md5(data.encode()).hexdigest()
+                else:
+                    raise ValueError(f"Unknown algorithm: {algorithm}")
+        """,
+        "lib/module_b.py": """\
+            def compute_hash(data: str, algorithm: str = "sha256") -> str:
+                \"\"\"Compute hash of data.\"\"\"
+                import hashlib
+                if algorithm == "sha256":
+                    return hashlib.sha256(data.encode()).hexdigest()
+                elif algorithm == "md5":
+                    return hashlib.md5(data.encode()).hexdigest()
+                else:
+                    raise ValueError(f"Unknown algorithm: {algorithm}")
+        """,
+        "lib/module_c.py": """\
+            def compute_hash(data: str, algorithm: str = "sha256") -> str:
+                \"\"\"Compute hash of data.\"\"\"
+                import hashlib
+                if algorithm == "sha256":
+                    return hashlib.sha256(data.encode()).hexdigest()
+                elif algorithm == "md5":
+                    return hashlib.md5(data.encode()).hexdigest()
+                else:
+                    raise ValueError(f"Unknown algorithm: {algorithm}")
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.MUTANT_DUPLICATE,
+            file_path="lib/",
+            should_detect=True,
+            description="Three exact copies of compute_hash across modules",
+        ),
+    ],
+)
+
+
+# ── Additional EDS fixtures ──────────────────────────────────────────────
+
+EDS_STATE_MACHINE_TP = GroundTruthFixture(
+    name="eds_state_machine_tp",
+    description="Complex state machine without docs → should fire EDS",
+    files={
+        "engine/__init__.py": "",
+        "engine/state_machine.py": """\
+            def advance_state(current, event, context, rules, history):
+                next_state = current
+                for rule in rules:
+                    if rule.get("from") == current and rule.get("event") == event:
+                        guard = rule.get("guard")
+                        if guard == "auth_required":
+                            if not context.get("authenticated"):
+                                continue
+                        elif guard == "admin_only":
+                            if context.get("role") != "admin":
+                                continue
+                        elif guard == "time_window":
+                            if not context.get("in_window"):
+                                continue
+                        next_state = rule["to"]
+                        action = rule.get("action")
+                        if action == "log":
+                            history.append({"from": current, "to": next_state})
+                        elif action == "notify":
+                            context["notifications"].append(next_state)
+                        elif action == "escalate":
+                            context["escalation_level"] = context.get("escalation_level", 0) + 1
+                        break
+                return next_state
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.EXPLAINABILITY_DEFICIT,
+            file_path="engine/state_machine.py",
+            should_detect=True,
+            description="Complex state machine with nested branches, no docs",
+        ),
+    ],
+)
+
+EDS_NESTED_LOOPS_TP = GroundTruthFixture(
+    name="eds_nested_loops_tp",
+    description="Deep nested loops without documentation → should fire EDS",
+    files={
+        "analytics/__init__.py": "",
+        "analytics/aggregator.py": """\
+            def cross_correlate(datasets, filters, thresholds, output_mode):
+                results = {}
+                for ds_name, dataset in datasets.items():
+                    for record in dataset:
+                        for f_name, f_func in filters.items():
+                            if not f_func(record):
+                                continue
+                            for threshold_name, threshold_val in thresholds.items():
+                                val = record.get(threshold_name, 0)
+                                if val >= threshold_val:
+                                    key = f"{ds_name}:{f_name}:{threshold_name}"
+                                    if key not in results:
+                                        results[key] = []
+                                    results[key].append(record)
+                if output_mode == "count":
+                    return {k: len(v) for k, v in results.items()}
+                elif output_mode == "first":
+                    return {k: v[0] for k, v in results.items() if v}
+                return results
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.EXPLAINABILITY_DEFICIT,
+            file_path="analytics/aggregator.py",
+            should_detect=True,
+            description="Deep nested loops, no docstring, no tests",
+        ),
+    ],
+)
+
+
+# ── Additional AVS fixtures ──────────────────────────────────────────────
+
+AVS_SKIP_LAYER_TP = GroundTruthFixture(
+    name="avs_skip_layer_tp",
+    description="API layer directly imports from DB layer → should fire AVS",
+    files={
+        "api/__init__.py": "",
+        "api/endpoints.py": """\
+            from db.queries import raw_query
+
+            def get_data():
+                return raw_query("SELECT * FROM data")
+        """,
+        "services/__init__.py": "",
+        "services/data_service.py": """\
+            from db.queries import raw_query
+
+            def get_processed_data():
+                return raw_query("SELECT * FROM data")
+        """,
+        "db/__init__.py": "",
+        "db/queries.py": """\
+            def raw_query(sql):
+                return []
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.ARCHITECTURE_VIOLATION,
+            file_path="api/endpoints.py",
+            should_detect=True,
+            description="API layer skipping service layer to access DB directly",
+        ),
+    ],
+)
+
+
+# ── Additional DIA fixtures ──────────────────────────────────────────────
+
+DIA_ADR_MISMATCH_TP = GroundTruthFixture(
+    name="dia_adr_mismatch_tp",
+    description="README references directories that don't exist → should fire DIA",
+    files={
+        "README.md": """\
+            # My Project
+
+            ## Architecture
+
+            - `src/` — main source code
+            - `workers/` — background job processors
+            - `scheduler/` — task scheduling engine
+        """,
+        "src/__init__.py": "",
+        "src/app.py": """\
+            def main():
+                pass
+        """,
+        # workers/ and scheduler/ do NOT exist
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.DOC_IMPL_DRIFT,
+            file_path="README.md",
+            should_detect=True,
+            description="workers/ and scheduler/ referenced but missing",
+        ),
+    ],
+)
+
+DIA_ADR_FILE_TP = GroundTruthFixture(
+    name="dia_adr_file_tp",
+    description="ADR file references non-existent directories → should fire DIA",
+    files={
+        "README.md": """\
+            # Project
+
+            See `docs/adr/` for architectural decisions.
+        """,
+        "docs/adr/001-layers.md": """\
+            # ADR 001: Layered Architecture
+
+            The project uses:
+            - `controllers/` — HTTP controllers
+            - `repositories/` — Data access layer
+        """,
+        "src/__init__.py": "",
+        "src/main.py": """\
+            def main():
+                pass
+        """,
+        # controllers/ and repositories/ do NOT exist
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.DOC_IMPL_DRIFT,
+            file_path="docs/adr/001-layers.md",
+            should_detect=True,
+            description="ADR references controllers/ and repositories/ but they don't exist",
+        ),
+    ],
+)
+
+
+# ── Additional SMS fixtures ──────────────────────────────────────────────
+
+SMS_ML_IN_WEB_TP = GroundTruthFixture(
+    name="sms_ml_in_web_tp",
+    description="ML dependencies in a web service module → should fire SMS",
+    files={
+        "api/__init__.py": "",
+        "api/routes.py": """\
+            import json
+
+            def get_users():
+                return json.dumps([])
+        """,
+        "api/helpers.py": """\
+            import json
+            import logging
+
+            def log_request(req):
+                logging.info(json.dumps(req))
+        """,
+        "api/new_feature.py": """\
+            import tensorflow
+            import pandas
+            import scipy
+
+            def predict(data):
+                return tensorflow.constant(0)
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.SYSTEM_MISALIGNMENT,
+            file_path="api/",
+            should_detect=True,
+            description="tensorflow, pandas, scipy are foreign to api/",
+        ),
+    ],
+)
+
+
 # ── Registry of all fixtures ─────────────────────────────────────────────
 
 ALL_FIXTURES: list[GroundTruthFixture] = [
     PFS_TRUE_POSITIVE,
     PFS_TRUE_NEGATIVE,
+    PFS_VALIDATION_TP,
+    PFS_LOGGING_TP,
     AVS_TRUE_POSITIVE,
     AVS_TRUE_NEGATIVE,
     AVS_CIRCULAR_TP,
+    AVS_SKIP_LAYER_TP,
     MDS_TRUE_POSITIVE,
     MDS_TRUE_NEGATIVE,
+    MDS_NEAR_DUPLICATE_TP,
+    MDS_EXACT_TRIPLE_TP,
     EDS_TRUE_POSITIVE,
     EDS_TRUE_NEGATIVE,
+    EDS_STATE_MACHINE_TP,
+    EDS_NESTED_LOOPS_TP,
     TVS_TRUE_POSITIVE,
     TVS_TRUE_NEGATIVE,
     SMS_TRUE_POSITIVE,
     SMS_TRUE_NEGATIVE,
+    SMS_ML_IN_WEB_TP,
     DIA_TRUE_POSITIVE,
     DIA_TRUE_NEGATIVE,
+    DIA_ADR_MISMATCH_TP,
+    DIA_ADR_FILE_TP,
 ]
 
 FIXTURES_BY_SIGNAL: dict[SignalType, list[GroundTruthFixture]] = {}

@@ -9,11 +9,26 @@ git clone https://github.com/sauremilk/drift.git
 cd drift
 pip install -e ".[dev]"
 pytest
+ruff check src/ tests/
 ```
+
+## Good First Issues
+
+New to the project? Look for issues labelled **[`good first issue`](https://github.com/sauremilk/drift/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** — these are scoped to be completable in a few hours and have clear acceptance criteria.
+
+**Examples of good first contributions:**
+
+| Area | Difficulty | Example |
+|---|---|---|
+| False positive fix | Easy | Reduce noise in EDS for `__init__` methods |
+| Documentation | Easy | Add configuration examples for monorepo setups |
+| Test coverage | Easy | Add edge-case tests for empty repos / single-file projects |
+| Signal improvement | Medium | Improve PFS fingerprint normalization for decorator variants |
+| New output format | Medium | Add CSV output formatter |
 
 ## What to work on
 
-Check the [open issues](https://github.com/sauremilk/drift/issues) — issues labelled **`good first issue`** are a good entry point.
+Check the [open issues](https://github.com/sauremilk/drift/issues) for current priorities.
 
 High-value contributions:
 
@@ -21,13 +36,14 @@ High-value contributions:
 - **TypeScript support** — tree-sitter integration (see roadmap in README)
 - **False positive fixes** — signal quality improvements are always welcome
 - **Documentation** — usage examples, configuration how-tos
+- **Benchmarks** — run drift on new open-source repos and report findings
 
 ## Adding a new signal
 
 1. Create `src/drift/signals/your_signal.py` implementing `BaseSignal`
-2. Register it in `src/drift/analyzer.py`
+2. Decorate the class with `@register_signal` — auto-discovery handles the rest (no manual import in `analyzer.py` needed)
 3. Add a weight entry in `src/drift/config.py` (default `0.0` until stable)
-4. Write tests in `tests/signals/test_your_signal.py`
+4. Write tests in `tests/test_your_signal.py` (TP + TN fixtures required)
 
 Signals must be:
 
@@ -41,12 +57,32 @@ Signals must be:
 - `ruff check src/ tests/` must pass
 - `pytest` must pass
 
+## Pre-Merge Checklist
+
+Every PR should pass these checks before merge:
+
+### Tests
+- [ ] `pytest` grün (alle Fixtures, Smoke Tests)
+- [ ] Neue Signal-Logik hat TP + TN Fixture
+- [ ] Mutations-Benchmark bei Signal-Änderung neu ausgeführt
+
+### Architektur
+- [ ] `drift self` → Score ≤ vorheriger Score + 0.010
+- [ ] Kein neues Modul ohne Eintrag in README/STUDY.md
+- [ ] Neues Signal → eigene Datei in `signals/`, implementiert `BaseSignal`
+
+### Code-Qualität
+- [ ] Keine neue Funktion >30 LOC ohne Docstring
+- [ ] Kein direkter DB/Git-Import außerhalb von `ingestion/`
+- [ ] pre-commit hooks laufen durch (`ruff check`, `mypy`)
+
 ## Submitting a PR
 
 1. Open an issue first for non-trivial changes (saves everyone time)
 2. Keep PRs focused — one concern per PR
 3. Add tests for new behaviour
 4. Update the README if you add a feature
+5. Verify `drift self` score stays within SLO (Δ ≤ +0.010)
 
 ## Versioning
 

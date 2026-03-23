@@ -143,7 +143,8 @@ class PatternFragmentationSignal(BaseSignal):
                 fix = (
                     f"Konsolidiere auf das dominante Pattern ({canonical_count}×). "
                     f"{nc_count} Abweichung(en) in: {', '.join(nc_files[:5])}"
-                    + (f" und {nc_count - 5} weitere" if nc_count > 5 else "") + "."
+                    + (f" und {nc_count - 5} weitere" if nc_count > 5 else "")
+                    + "."
                 )
 
                 findings.append(

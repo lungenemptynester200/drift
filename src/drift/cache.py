@@ -68,9 +68,7 @@ class ParseCache:
     def put(self, content_hash: str, result: ParseResult) -> None:
         """Store a parse result in the cache."""
         data = _serialize(result)
-        self._cache_path(content_hash).write_text(
-            json.dumps(data, default=str), encoding="utf-8"
-        )
+        self._cache_path(content_hash).write_text(json.dumps(data, default=str), encoding="utf-8")
 
 
 def _serialize(pr: ParseResult) -> dict[str, Any]:
