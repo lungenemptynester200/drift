@@ -16,6 +16,8 @@ out.json
 benchmark_pwbs.json
 scripts/_*
 tagesplanung/
+\# Drift*Prior.md
 action_rate_err.txt
 action_rate_test.txt
 diag_err.txt
+LAUNCH_CHECKLIST.md

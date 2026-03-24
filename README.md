@@ -13,13 +13,33 @@
 [![Stars](https://img.shields.io/github/stars/sauremilk/drift?style=social)](https://github.com/sauremilk/drift)
 [![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://sauremilk.github.io/drift/)
 
-**Surface architectural drift patterns that often appear in fast-moving and AI-assisted codebases.**
+**Detect architectural erosion in AI-assisted Python codebases — deterministic, no LLM required.**
 
-Drift is a deterministic static analyzer for teams that want to catch loss of architectural coherence early: fragmented patterns, layer violations, near-duplicates, unstable hotspots, and other signs that code still works locally but is getting harder to maintain globally.
+Benchmarked on FastAPI, Django, Pydantic and 12 more real-world repos. 97.3 % precision on 2 642 findings. [Full study →](STUDY.md)
+
+## Try it now
+
+```bash
+pip install drift-analyzer   # requires Python 3.11+
+drift analyze --repo .
+```
+
+That's it — you'll see a drift score, module ranking, and actionable findings in seconds.
 
 ![drift CLI demo](demos/demo.gif)
 
-Reproducible terminal recording via [demos/demo.tape](demos/demo.tape).
+<details>
+<summary>Try it on an example project with known drift patterns</summary>
+
+```bash
+git clone https://github.com/sauremilk/drift.git
+cd drift/examples/demo-project
+pip install drift-analyzer
+drift analyze --repo .
+```
+
+See [examples/demo-project/](examples/demo-project/) for a small Python project with intentional architectural drift patterns.
+</details>
 
 ## Why drift
 
@@ -33,19 +53,15 @@ AI-assisted development is fast, but speed often hides structural erosion:
 Drift does not try to replace linters, security scanners, or type checkers.
 It complements them by surfacing architecture and coherence problems that are easy to miss in fast-moving repositories.
 
-## 2-minute quickstart
+## Setup
+
+### CI gate
 
 ```bash
-pip install drift-analyzer
-
-# local scan
-drift analyze --repo .
-
-# CI gate
 drift check --fail-on high
 ```
 
-GitHub Action:
+### GitHub Action
 
 ```yaml
 name: Drift
@@ -68,6 +84,21 @@ jobs:
         with:
           fail-on: high
           upload-sarif: "true"
+```
+
+### pre-commit hook
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: drift
+        name: drift
+        entry: drift check --fail-on high
+        language: system
+        pass_filenames: false
+        always_run: true
 ```
 
 More setup paths:
@@ -160,6 +191,13 @@ Further reading:
 - [Benchmarking and Trust](docs-site/benchmarking.md)
 - [Full Study](STUDY.md)
 - [Case Studies](docs-site/case-studies/index.md)
+
+## Contributing
+
+We welcome bug reports, signal improvements, and documentation fixes.
+If you run drift on your codebase and get surprising results — good or bad — please [open an issue](https://github.com/sauremilk/drift/issues) or start a [discussion](https://github.com/sauremilk/drift/discussions).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and good first issues.
 
 ## Documentation map
 
