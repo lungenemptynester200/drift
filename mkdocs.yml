@@ -2,7 +2,7 @@ site_name: Drift — Codebase Coherence Analyzer
 site_url: https://sauremilk.github.io/drift/
 repo_url: https://github.com/sauremilk/drift
 repo_name: sauremilk/drift
-site_description: Detect architectural erosion from AI-generated code
+site_description: Surface architectural drift patterns in fast-moving codebases
 
 docs_dir: docs-site
 
@@ -50,11 +50,17 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
+      - Team Rollout: getting-started/team-rollout.md
+      - Finding Triage: getting-started/finding-triage.md
       - Configuration: getting-started/configuration.md
   - How It Works:
       - Algorithm Deep Dive: algorithms/deep-dive.md
       - Signal Reference: algorithms/signals.md
       - Scoring Model: algorithms/scoring.md
+  - Trust & Evaluation:
+      - Benchmarking and Trust: benchmarking.md
+  - Product:
+      - Product Strategy: product-strategy.md
   - Case Studies:
       - Overview: case-studies/index.md
       - FastAPI: case-studies/fastapi.md
