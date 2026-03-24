@@ -10,9 +10,13 @@ build/
 *.db
 .ruff_cache/
 .pytest_cache/
+.mypy_cache/
 .coverage
+coverage.xml
 htmlcov/
+site/
 out.json
+drift_score.json
 benchmark_pwbs.json
 scripts/_*
 tagesplanung/
