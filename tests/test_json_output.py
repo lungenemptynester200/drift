@@ -90,5 +90,5 @@ def test_findings_to_sarif_handles_finding_without_file_path() -> None:
     result = sarif["runs"][0]["results"][0]
 
     assert "locations" not in result
-    assert result["ruleId"] == "system_misalignment/high"
+    assert result["ruleId"] == "system_misalignment"
     assert "FIX:" in result["message"]["text"]

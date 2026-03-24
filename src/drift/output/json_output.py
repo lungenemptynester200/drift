@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from drift import __version__
 from drift.models import Finding, ModuleScore, RepoAnalysis, Severity
 
 
@@ -40,7 +41,7 @@ def _module_to_dict(m: ModuleScore) -> dict[str, Any]:
 def analysis_to_json(analysis: RepoAnalysis, indent: int = 2) -> str:
     """Serialize a RepoAnalysis to JSON string."""
     data: dict[str, Any] = {
-        "version": "0.1.0",
+        "version": __version__,
         "repo": analysis.repo_path.as_posix(),
         "analyzed_at": analysis.analyzed_at.isoformat(),
         "drift_score": analysis.drift_score,
@@ -66,7 +67,7 @@ def findings_to_sarif(analysis: RepoAnalysis) -> str:
 
     rule_ids: dict[str, int] = {}
     for f in analysis.findings:
-        rule_key = f"{f.signal_type.value}/{f.severity.value}"
+        rule_key = f.signal_type.value
         if rule_key not in rule_ids:
             rule_ids[rule_key] = len(rules)
             rules.append(
@@ -134,7 +135,7 @@ def findings_to_sarif(analysis: RepoAnalysis) -> str:
                 "tool": {
                     "driver": {
                         "name": "drift",
-                        "version": "0.1.0",
+                        "version": __version__,
                         "rules": rules,
                     }
                 },

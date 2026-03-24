@@ -117,6 +117,8 @@ def parse_git_history(
     repo_path: Path,
     since_days: int = 90,
     file_filter: set[str] | None = None,
+    *,
+    ai_confidence_threshold: float = 0.50,
 ) -> list[CommitInfo]:
     """Parse git history and return enriched commit information.
 
@@ -218,7 +220,8 @@ def parse_git_history(
 
         coauthors_raw = CO_AUTHOR_RE.findall(message)
         coauthors = [name for name, _email in coauthors_raw]
-        is_ai, ai_conf = _detect_ai_attribution(message, coauthors)
+        _is_ai_raw, ai_conf = _detect_ai_attribution(message, coauthors)
+        is_ai = ai_conf >= ai_confidence_threshold
 
         commits.append(
             CommitInfo(

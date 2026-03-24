@@ -21,15 +21,9 @@ from drift.models import (
     severity_for_score,
 )
 
-_SIGNAL_WEIGHT_KEYS: dict[SignalType, str] = {
-    SignalType.PATTERN_FRAGMENTATION: "pattern_fragmentation",
-    SignalType.ARCHITECTURE_VIOLATION: "architecture_violation",
-    SignalType.MUTANT_DUPLICATE: "mutant_duplicate",
-    SignalType.EXPLAINABILITY_DEFICIT: "explainability_deficit",
-    SignalType.DOC_IMPL_DRIFT: "doc_impl_drift",
-    SignalType.TEMPORAL_VOLATILITY: "temporal_volatility",
-    SignalType.SYSTEM_MISALIGNMENT: "system_misalignment",
-}
+# Generated from SignalType enum — adding a new SignalType auto-registers
+# its weight key without a manual dict entry.
+_SIGNAL_WEIGHT_KEYS: dict[SignalType, str] = {sig: sig.value for sig in SignalType}
 
 
 # Re-export for backwards compat; canonical implementation in models.py

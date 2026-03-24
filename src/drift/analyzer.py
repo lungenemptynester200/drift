@@ -62,10 +62,14 @@ def _is_git_repo(path: Path) -> bool:
 
 
 def _fetch_git_history(
-    repo_path: Path, since_days: int, known_files: set[str]
+    repo_path: Path, since_days: int, known_files: set[str],
+    ai_confidence_threshold: float = 0.50,
 ) -> tuple[list, dict]:
     """Run git history parsing (designed to run in a background thread)."""
-    commits = parse_git_history(repo_path, since_days=since_days, file_filter=known_files)
+    commits = parse_git_history(
+        repo_path, since_days=since_days, file_filter=known_files,
+        ai_confidence_threshold=ai_confidence_threshold,
+    )
     file_histories = build_file_histories(commits, known_files=known_files)
     return commits, file_histories
 
@@ -121,7 +125,10 @@ def _run_pipeline(
     with ThreadPoolExecutor(max_workers=workers) as executor:
         # --- 2. Git history (concurrent with parsing) ---
         git_future = (
-            executor.submit(_fetch_git_history, repo_path, since_days, known_files)
+            executor.submit(
+                _fetch_git_history, repo_path, since_days, known_files,
+                config.thresholds.ai_confidence_threshold,
+            )
             if has_git
             else None
         )
@@ -297,6 +304,7 @@ def analyze_diff(
     diff_ref: str = "HEAD~1",
     workers: int = _DEFAULT_WORKERS,
     on_progress: ProgressCallback | None = None,
+    since_days: int = 90,
 ) -> RepoAnalysis:
     """Analyze only files changed since a given git ref.
 
@@ -355,7 +363,7 @@ def analyze_diff(
 
     return _run_pipeline(
         repo_path, files, config,
-        since_days=90,
+        since_days=since_days,
         on_progress=on_progress,
         workers=workers,
         _start=start,

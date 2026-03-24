@@ -37,6 +37,13 @@ from drift.commands import console
     "--no-embeddings", is_flag=True, default=False, help="Disable embedding-based analysis."
 )
 @click.option("--embedding-model", default=None, help="Sentence-transformers model name.")
+@click.option(
+    "--since",
+    "since_days",
+    default=None,
+    type=int,
+    help="Days of git history to consider.",
+)
 def check(
     repo: Path,
     diff_ref: str,
@@ -46,6 +53,7 @@ def check(
     workers: int | None,
     no_embeddings: bool,
     embedding_model: str | None,
+    since_days: int | None,
 ) -> None:
     """Check a diff for drift (CI mode)."""
     from drift.analyzer import _DEFAULT_WORKERS, analyze_diff
@@ -60,8 +68,12 @@ def check(
     threshold = fail_on or cfg.severity_gate()
 
     effective_workers = workers if workers is not None else _DEFAULT_WORKERS
+    effective_since = since_days if since_days is not None else 90
     with console.status("[bold blue]Checking diff..."):
-        analysis = analyze_diff(repo, cfg, diff_ref=diff_ref, workers=effective_workers)
+        analysis = analyze_diff(
+            repo, cfg, diff_ref=diff_ref, workers=effective_workers,
+            since_days=effective_since,
+        )
 
     if output_format == "json":
         from drift.output.json_output import analysis_to_json

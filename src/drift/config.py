@@ -39,6 +39,7 @@ class ThresholdsConfig(BaseModel):
     similarity_threshold: float = 0.80
     recency_days: int = 14
     volatility_z_threshold: float = 1.5
+    ai_confidence_threshold: float = 0.50
 
 
 class SignalWeights(BaseModel):
