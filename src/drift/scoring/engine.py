@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from drift.config import SignalWeights
@@ -169,7 +169,7 @@ def severity_gate_pass(
 
 def delta_gate_pass(
     current_score: float,
-    history: list[Mapping[str, float]],
+    history: Sequence[Mapping[str, object]],
     fail_on_delta: float,
     window: int = 5,
 ) -> bool:
@@ -179,7 +179,7 @@ def delta_gate_pass(
     Returns ``True`` if the gate passes (degradation within budget).
     If no history exists, the gate always passes.
     """
-    recent = [s["drift_score"] for s in history[-window:]]
+    recent = [float(s["drift_score"]) for s in history[-window:]]
     if not recent:
         return True
     baseline = sum(recent) / len(recent)
