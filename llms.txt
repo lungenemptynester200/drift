@@ -1,0 +1,12 @@
+# drift-analyzer
+> Deterministic architectural drift detection and architectural linter for AI-assisted Python teams.
+
+Package: drift-analyzer
+Install: pip install drift-analyzer
+Repository: https://github.com/sauremilk/drift
+Documentation: https://sauremilk.github.io/drift/
+Command: drift analyze --repo .
+
+Keywords: architecture drift, architectural erosion, architecture degradation, architectural linter, technical debt detection, GitHub Copilot, AI coding tools, static analysis, Python
+
+Summary: Drift is a deterministic static analyzer for Python repositories. It finds cross-file coherence problems such as pattern fragmentation, architecture violations, mutant duplicates, explainability deficits, temporal volatility, and system misalignment.

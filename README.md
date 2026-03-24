@@ -15,7 +15,7 @@
 
 > **Repo:** `sauremilk/drift` · **Package:** `drift-analyzer` · **Command:** `drift` · **Requires:** Python 3.11+
 
-**Drift is the deterministic coherence check for AI-assisted Python teams. Ruff finds local rule violations. Semgrep and CodeQL find security and policy issues. Drift finds the cross-file architectural erosion those tools do not model.**
+**Drift is the deterministic coherence check and architectural linter for AI-assisted Python teams. Ruff finds local rule violations. Semgrep and CodeQL find security and policy issues. Drift finds the cross-file architectural erosion, architecture degradation, and technical debt patterns those tools do not model.**
 
 ### What drift catches that other checks usually don't
 
@@ -54,14 +54,14 @@ The [demo project](examples/demo-project/) contains intentional drift patterns �
 
 ## Why drift
 
-When your team uses Copilot, Cursor, or other AI coding tools, code passes CI — but the architecture quietly degrades:
+When your team uses GitHub Copilot, Cursor, or other AI coding tools, code passes CI — but the architecture quietly degrades:
 
 - **Pattern fragmentation:** error handling is implemented 4 different ways across the same service
 - **Boundary violations:** the API layer imports directly from the database layer
 - **Silent duplication:** AI generates a new validator instead of finding the existing one
 - **Churn hotspots:** the same files change every sprint because the structure is unclear
 
-Your linter, type checker, and test suite won't catch this. Drift does — deterministically, without any LLM in the pipeline.
+Your linter, type checker, and test suite won't catch this. Drift does — deterministically, without any LLM in the pipeline. That makes drift useful for architecture degradation detection and technical debt detection in AI-assisted Python codebases.
 
 ## Setup
 
@@ -171,6 +171,8 @@ Signal details and scoring model:
 - **Python teams using AI coding tools** (Copilot, Cursor, Cody) in existing codebases
 - **Tech leads** who want to catch structural erosion before it becomes team habit
 - **CI pipelines** that need a deterministic architecture check without LLM infrastructure
+
+Teams often describe drift as an architectural linter for repositories where GitHub Copilot and similar assistants accelerate local delivery faster than shared design conventions can keep up.
 
 ## Who should adopt now
 

@@ -1,8 +1,8 @@
 # Drift — Codebase Coherence Analyzer
 
-**Surface architectural drift patterns that often appear in fast-moving and AI-assisted codebases.**
+**Surface architectural drift, architecture degradation, and technical debt patterns that often appear in fast-moving and AI-assisted codebases.**
 
-Drift is a deterministic static analyzer for teams that want to catch architectural erosion before it becomes normal: fragmented patterns, boundary violations, near-duplicates, and unstable hotspots that accumulate when code is optimized for local delivery but not for global coherence.
+Drift is a deterministic static analyzer and architectural linter for teams that want to catch architectural erosion before it becomes normal: fragmented patterns, boundary violations, near-duplicates, and unstable hotspots that accumulate when code is optimized for local delivery but not for global coherence. It is especially useful for repositories shaped by GitHub Copilot and other AI coding tools.
 
 > Repo: `sauremilk/drift` · Package: `drift-analyzer` · Command: `drift` · Requires: Python 3.11+
 
@@ -24,6 +24,13 @@ Recommended next steps:
 - [Quick Start](getting-started/quickstart.md)
 - [Team Rollout](getting-started/team-rollout.md)
 - [Finding Triage](getting-started/finding-triage.md)
+
+If you are evaluating drift for a specific job-to-be-done, start here instead:
+
+- [Architecture Drift Detection for Python](use-cases/architecture-drift-python.md)
+- [Architectural Linter for AI Coding Teams](use-cases/architectural-linter-ai-teams.md)
+- [CI Architecture Checks with SARIF](use-cases/ci-architecture-checks-sarif.md)
+- [Technical Debt Detection for AI-Assisted Codebases](use-cases/technical-debt-ai-codebases.md)
 
 Current public evidence: 15 real-world repositories in the study corpus, 6 scoring signals, and DIA kept report-only with weight 0.00 until extraction precision improves.
 
@@ -50,6 +57,30 @@ Drift earns trust through reproducible analysis, explicit methodology, and signa
 - clear limitations and interpretation notes in the docs
 
 See [Benchmarking and Trust](benchmarking.md) for methodology, known limitations, and how to read findings conservatively.
+
+If you need a compact evidence summary first, read [Trust and Evidence](trust-evidence.md).
+
+## Compare Drift to Adjacent Tools
+
+- [Drift vs Ruff](comparisons/drift-vs-ruff.md)
+- [Drift vs Semgrep and CodeQL](comparisons/drift-vs-semgrep-codeql.md)
+- [Drift vs Architecture Conformance Tools](comparisons/drift-vs-architecture-conformance.md)
+
+These pages are intentionally narrow: they explain where drift fits, where it does not, and how teams combine it with existing checks.
+
+## Integration Paths
+
+- [Integrations](integrations.md)
+- [API and Outputs](reference/api-outputs.md)
+
+## Reusable Project Summary
+
+- [Press and Brand](product/press-brand.md)
+
+## Quick Reference
+
+- [FAQ](faq.md)
+- [Glossary](glossary.md)
 
 ## Documentation Map
 

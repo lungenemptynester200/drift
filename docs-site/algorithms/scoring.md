@@ -29,7 +29,7 @@ $$\text{signal\_score} = \overline{s} \times \min\!\left(1,\; \frac{\ln(1 + n)}{
 | Explainability Deficit (EDS) | 0.12 | Important but noisy |
 | System Misalignment (SMS) | 0.10 | Newest signal, still calibrating |
 
-Weights are calibrated via ablation study: remove each signal, measure F1 delta, assign proportional weight. See [ADR-003](../adr/003-composite-scoring-model.md).
+Weights are calibrated via ablation study: remove each signal, measure F1 delta, assign proportional weight. See [ADR-003](https://github.com/sauremilk/drift/blob/master/docs/adr/003-composite-scoring-model.md).
 
 ## Severity Mapping
 

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if page.url == '' or page.url == 'index/' %}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Drift",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS, Windows",
+      "softwareVersion": "0.5.0",
+      "description": "Deterministic architectural drift detection and architectural linter for AI-assisted Python teams.",
+      "url": "https://sauremilk.github.io/drift/",
+      "downloadUrl": "https://pypi.org/project/drift-analyzer/",
+      "codeRepository": "https://github.com/sauremilk/drift",
+      "programmingLanguage": "Python",
+      "license": "https://github.com/sauremilk/drift/blob/master/LICENSE"
+    }
+  </script>
+  {% endif %}
+  {% if page.url == 'faq/' %}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is drift?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Drift is a deterministic static analyzer for architectural erosion and cross-file coherence problems in Python repositories."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does drift detect?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Drift detects six scoring signal families: pattern fragmentation, architecture violations, mutant duplicates, explainability deficit, temporal volatility, and system misalignment. DIA remains report-only with weight 0.00."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is drift a bug finder or security scanner?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Drift is not positioned as a bug finder, a security scanner, or a type checker."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How should a team introduce drift?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Start locally, then move to report-only CI, then gate only on high findings after reviewing real output."
+          }
+        }
+      ]
+    }
+  </script>
+  {% endif %}
+{% endblock %}

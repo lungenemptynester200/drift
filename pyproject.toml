@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "drift-analyzer"
 version = "0.5.0"
-description = "Detect architectural erosion from AI-generated code — the first deterministic codebase coherence analyzer for AI-accelerated development"
+description = "Detect architectural erosion, architecture degradation, and technical debt from AI-generated code with a deterministic architectural linter for AI-accelerated development"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
@@ -15,10 +15,15 @@ authors = [
 keywords = [
     "code-analysis",
     "technical-debt",
+    "technical-debt-detection",
     "architecture",
     "architecture-drift",
+    "architecture-degradation",
+    "architectural-erosion",
+    "architectural-linter",
     "ai-code",
     "copilot",
+    "github-copilot",
     "cursor",
     "github-action",
     "sarif",

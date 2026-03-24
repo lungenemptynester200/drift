@@ -2,12 +2,13 @@ site_name: Drift — Codebase Coherence Analyzer
 site_url: https://sauremilk.github.io/drift/
 repo_url: https://github.com/sauremilk/drift
 repo_name: sauremilk/drift
-site_description: Surface architectural drift patterns in fast-moving codebases
+site_description: Surface architectural drift, architecture degradation, and technical debt patterns in AI-assisted codebases
 
 docs_dir: docs-site
 
 theme:
   name: material
+  custom_dir: overrides
   palette:
     - scheme: default
       primary: deep purple
@@ -53,15 +54,31 @@ nav:
       - Team Rollout: getting-started/team-rollout.md
       - Finding Triage: getting-started/finding-triage.md
       - Configuration: getting-started/configuration.md
+  - Use Cases:
+      - Architecture Drift Detection for Python: use-cases/architecture-drift-python.md
+      - Architectural Linter for AI Coding Teams: use-cases/architectural-linter-ai-teams.md
+      - CI Architecture Checks with SARIF: use-cases/ci-architecture-checks-sarif.md
+      - Technical Debt Detection for AI-Assisted Codebases: use-cases/technical-debt-ai-codebases.md
+  - Comparisons:
+      - Drift vs Ruff: comparisons/drift-vs-ruff.md
+      - Drift vs Semgrep and CodeQL: comparisons/drift-vs-semgrep-codeql.md
+      - Drift vs Architecture Conformance Tools: comparisons/drift-vs-architecture-conformance.md
+  - Integrations: integrations.md
   - How It Works:
       - Algorithm Deep Dive: algorithms/deep-dive.md
       - Signal Reference: algorithms/signals.md
       - Scoring Model: algorithms/scoring.md
   - Trust & Evaluation:
+      - Trust and Evidence: trust-evidence.md
       - Benchmarking and Trust: benchmarking.md
       - Benchmark Study: study.md
+  - Reference:
+      - FAQ: faq.md
+      - Glossary: glossary.md
+      - API and Outputs: reference/api-outputs.md
   - Product:
       - Product Strategy: product-strategy.md
+      - Press and Brand: product/press-brand.md
   - Case Studies:
       - Overview: case-studies/index.md
       - FastAPI: case-studies/fastapi.md
