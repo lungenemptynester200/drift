@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 class LayerBoundary(BaseModel):
@@ -16,11 +16,13 @@ class LayerBoundary(BaseModel):
     from_pattern: str = Field(alias="from")
     deny_import: list[str] = []
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 class PolicyConfig(BaseModel):
     """Policy configuration for enforcement rules."""
+
+    model_config = ConfigDict(extra="forbid")
 
     error_handling: dict[str, Any] = Field(default_factory=dict)
     layer_boundaries: list[LayerBoundary] = Field(default_factory=list)
@@ -31,6 +33,8 @@ class PolicyConfig(BaseModel):
 
 class ThresholdsConfig(BaseModel):
     """Tunable thresholds for detection signals."""
+
+    model_config = ConfigDict(extra="forbid")
 
     high_complexity: int = 10
     medium_complexity: int = 5
@@ -48,6 +52,8 @@ class SignalWeights(BaseModel):
     Weights are normalised internally — they don't need to sum to 1.0,
     but a warning is emitted if they deviate significantly.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     pattern_fragmentation: float = 0.22
     architecture_violation: float = 0.22
@@ -76,6 +82,8 @@ def _default_includes() -> list[str]:
 
 class DriftConfig(BaseModel):
     """Main drift configuration, loaded from drift.yaml."""
+
+    model_config = ConfigDict(extra="forbid")
 
     include: list[str] = Field(default_factory=_default_includes)
     exclude: list[str] = Field(
@@ -119,7 +127,10 @@ class DriftConfig(BaseModel):
         if config_path and config_path.exists():
             raw = config_path.read_text(encoding="utf-8")
             data = yaml.safe_load(raw) or {}
-            return cls(**data)
+            try:
+                return cls.model_validate(data)
+            except ValidationError as exc:
+                raise ValueError(f"Invalid drift config in {config_path}: {exc}") from exc
 
         return cls()
 

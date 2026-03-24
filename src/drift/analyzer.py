@@ -81,7 +81,6 @@ def _run_pipeline(
     since_days: int = 90,
     on_progress: ProgressCallback | None = None,
     workers: int = _DEFAULT_WORKERS,
-    _start: float | None = None,
 ) -> RepoAnalysis:
     """Shared analysis pipeline: parse → git history → signals → score.
 
@@ -90,7 +89,7 @@ def _run_pipeline(
     duplication and ensures every code-path benefits from caching, progress
     reporting, and resilient signal execution.
     """
-    start = _start if _start is not None else time.monotonic()
+    start = time.monotonic()
 
     def _progress(phase: str, current: int, total: int) -> None:
         if on_progress:
@@ -133,12 +132,12 @@ def _run_pipeline(
             else None
         )
 
-        parse_results: list[ParseResult] = [None] * len(files)  # type: ignore[list-item]
+        parse_results_opt: list[ParseResult | None] = [None] * len(files)
         for idx, cached in cached_results.items():
-            parse_results[idx] = cached
+            parse_results_opt[idx] = cached
 
         if to_parse:
-            new_results: list[tuple[int, str, ParseResult]] = [None] * len(to_parse)  # type: ignore[list-item]
+            new_results: list[tuple[int, str, ParseResult]] = []
             futures = {
                 executor.submit(parse_file, finfo.path, repo_path, finfo.language): (
                     i,
@@ -150,14 +149,20 @@ def _run_pipeline(
             for future in as_completed(futures):
                 i, idx, content_hash = futures[future]
                 result = future.result()
-                parse_results[idx] = result
+                parse_results_opt[idx] = result
                 if content_hash is not None:
-                    new_results[i] = (idx, content_hash, result)
+                    new_results.append((idx, content_hash, result))
 
-            for entry in new_results:
-                if entry is not None:
-                    _idx, h, r = entry
-                    cache.put(h, r)
+            for _idx, h, r in new_results:
+                cache.put(h, r)
+
+        missing = [i for i, pr in enumerate(parse_results_opt) if pr is None]
+        if missing:
+            raise RuntimeError(
+                f"Parser pipeline produced incomplete results for {len(missing)} files. "
+                "This indicates a parsing failure before result materialization."
+            )
+        parse_results = [pr for pr in parse_results_opt if pr is not None]
 
         _progress("Parsing files", len(files), len(files))
 
@@ -272,7 +277,6 @@ def analyze_repo(
     """
     repo_path = repo_path.resolve()
     start = time.monotonic()
-
     if config is None:
         config = DriftConfig.load(repo_path)
 
@@ -289,13 +293,14 @@ def analyze_repo(
         target = Path(target_path)
         files = [f for f in files if str(f.path).startswith(str(target))]
 
-    return _run_pipeline(
+    analysis = _run_pipeline(
         repo_path, files, config,
         since_days=since_days,
         on_progress=on_progress,
         workers=workers,
-        _start=start,
     )
+    analysis.analysis_duration_seconds = round(time.monotonic() - start, 2)
+    return analysis
 
 
 def analyze_diff(
@@ -314,7 +319,6 @@ def analyze_diff(
     logger = logging.getLogger("drift")
     repo_path = repo_path.resolve()
     start = time.monotonic()
-
     if config is None:
         config = DriftConfig.load(repo_path)
 
@@ -361,10 +365,11 @@ def analyze_diff(
             drift_score=0.0,
         )
 
-    return _run_pipeline(
+    analysis = _run_pipeline(
         repo_path, files, config,
         since_days=since_days,
         on_progress=on_progress,
         workers=workers,
-        _start=start,
     )
+    analysis.analysis_duration_seconds = round(time.monotonic() - start, 2)
+    return analysis

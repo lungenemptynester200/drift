@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from drift.config import DriftConfig
 
 
@@ -41,3 +43,22 @@ def test_weight_sum_approximately_one():
     w = DriftConfig().weights
     total = sum(w.as_dict().values())
     assert abs(total - 1.0) < 0.02
+
+
+def test_load_yaml_unknown_top_level_key_raises(tmp_path: Path):
+    (tmp_path / "drift.yaml").write_text("unknown_key: true\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid drift config"):
+        DriftConfig.load(tmp_path)
+
+
+def test_load_yaml_unknown_nested_key_raises(tmp_path: Path):
+    yaml_content = """\
+weights:
+  pattern_fragmentation: 0.30
+  unknown_weight: 0.25
+"""
+    (tmp_path / "drift.yaml").write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid drift config"):
+        DriftConfig.load(tmp_path)

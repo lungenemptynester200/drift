@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
 from drift.cache import ParseCache
 from drift.models import ParseResult
+
+
+def test_file_hash_uses_128_bit_prefix(tmp_path: Path) -> None:
+    src = tmp_path / "a.py"
+    src.write_text("print('ok')\n", encoding="utf-8")
+
+    h = ParseCache.file_hash(src)
+    assert len(h) == 32
 
 
 def test_get_corrupted_cache_entry_returns_none_and_deletes_file(tmp_path: Path) -> None:
@@ -36,3 +45,16 @@ def test_put_swallows_oserror_on_write(
 
     # Cache failures must never crash analysis.
     cache.put("cafebabecafebabe", parse_result)
+
+
+def test_concurrent_put_get_does_not_crash(tmp_path: Path) -> None:
+    cache = ParseCache(tmp_path)
+
+    def _worker(i: int) -> None:
+        h = f"{i:032x}"
+        result = ParseResult(file_path=Path(f"f{i}.py"), language="python")
+        cache.put(h, result)
+        _ = cache.get(h)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(_worker, range(64)))

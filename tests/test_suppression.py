@@ -160,3 +160,11 @@ class TestFilterFindings:
         assert len(suppressed) == 1
         assert suppressed[0].signal_type == SignalType.ARCHITECTURE_VIOLATION
         assert len(active) == 2
+
+    def test_suppresses_when_ignore_matches_end_line(self) -> None:
+        f = _make_finding(start_line=5)
+        f.end_line = 8
+
+        active, suppressed = filter_findings([f], {("src/app.py", 8): None})
+        assert len(active) == 0
+        assert len(suppressed) == 1

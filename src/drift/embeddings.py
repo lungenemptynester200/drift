@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -268,6 +269,17 @@ class EmbeddingService:
 # ---------------------------------------------------------------------------
 
 _SERVICE: EmbeddingService | None = None
+_SERVICE_CFG: tuple[str, str | None, int] | None = None
+_SERVICE_LOCK = threading.Lock()
+
+
+def _cache_dir_key(cache_dir: Path | None) -> str | None:
+    if cache_dir is None:
+        return None
+    try:
+        return str(cache_dir.resolve())
+    except OSError:
+        return str(cache_dir)
 
 
 def get_embedding_service(
@@ -276,19 +288,41 @@ def get_embedding_service(
     batch_size: int = 64,
 ) -> EmbeddingService | None:
     """Return the global EmbeddingService, or None if deps are missing."""
-    global _SERVICE
+    global _SERVICE, _SERVICE_CFG
     if not _EMBEDDINGS_AVAILABLE:
         return None
-    if _SERVICE is None:
-        _SERVICE = EmbeddingService(
-            model_name=model_name,
-            cache_dir=cache_dir,
-            batch_size=batch_size,
-        )
-    return _SERVICE
+
+    requested_cfg = (model_name, _cache_dir_key(cache_dir), batch_size)
+    with _SERVICE_LOCK:
+        if _SERVICE is None:
+            _SERVICE = EmbeddingService(
+                model_name=model_name,
+                cache_dir=cache_dir,
+                batch_size=batch_size,
+            )
+            _SERVICE_CFG = requested_cfg
+            return _SERVICE
+
+        if _SERVICE_CFG != requested_cfg:
+            logger.warning(
+                "Reinitializing embedding service due to changed configuration: "
+                "old=%s new=%s",
+                _SERVICE_CFG,
+                requested_cfg,
+            )
+            _SERVICE = EmbeddingService(
+                model_name=model_name,
+                cache_dir=cache_dir,
+                batch_size=batch_size,
+            )
+            _SERVICE_CFG = requested_cfg
+
+        return _SERVICE
 
 
 def reset_embedding_service() -> None:
     """Reset the global singleton (useful in tests)."""
-    global _SERVICE
-    _SERVICE = None
+    global _SERVICE, _SERVICE_CFG
+    with _SERVICE_LOCK:
+        _SERVICE = None
+        _SERVICE_CFG = None

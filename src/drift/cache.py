@@ -27,6 +27,9 @@ class ParseCache:
 
     # Evict entries not accessed in the last 7 days.
     _EVICTION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+    # 128-bit prefix keeps filenames compact while materially reducing
+    # collision probability versus 64-bit truncation on large repositories.
+    _HASH_HEX_LEN = 32
 
     def __init__(self, cache_dir: Path) -> None:
         self._cache_dir = cache_dir / "parse"
@@ -45,9 +48,9 @@ class ParseCache:
 
     @staticmethod
     def file_hash(file_path: Path) -> str:
-        """SHA-256 of file content (first 16 hex chars)."""
+        """SHA-256 of file content (first 32 hex chars, 128-bit)."""
         content = file_path.read_bytes()
-        return hashlib.sha256(content).hexdigest()[:16]
+        return hashlib.sha256(content).hexdigest()[:ParseCache._HASH_HEX_LEN]
 
     def _cache_path(self, content_hash: str) -> Path:
         return self._cache_dir / f"{content_hash}.json"

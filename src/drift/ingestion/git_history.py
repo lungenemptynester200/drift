@@ -127,7 +127,6 @@ def parse_git_history(
     large repositories.
     """
     since_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=since_days)
-    since_date.isoformat()
 
     # Use a unique record separator that won't appear in commit messages.
     # Format each commit as: RS hash RS author RS email RS timestamp RS message RS

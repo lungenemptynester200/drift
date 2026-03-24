@@ -63,9 +63,9 @@ def filter_findings(
 ) -> tuple[list[Finding], list[Finding]]:
     """Partition findings into *active* and *suppressed*.
 
-    A finding is suppressed when its ``(file_path, start_line)`` has a
-    matching entry in *suppressions* that either covers all signals
-    (``None``) or includes the finding's signal type.
+    A finding is suppressed when any line in its ``[start_line, end_line]``
+    range has a matching entry in *suppressions* that either covers all
+    signals (``None``) or includes the finding's signal type.
     """
     if not suppressions:
         return findings, []
@@ -78,14 +78,21 @@ def filter_findings(
             active.append(f)
             continue
 
-        key = (f.file_path.as_posix(), f.start_line)
-        entry = suppressions.get(key)
-        if entry is None and key not in suppressions:
-            active.append(f)
-        elif entry is None:
-            # None entry means suppress ALL signals on this line
-            suppressed.append(f)
-        elif f.signal_type.value in entry:
+        end_line = f.end_line if f.end_line is not None else f.start_line
+        start_line = min(f.start_line, end_line)
+        end_line = max(f.start_line, end_line)
+
+        is_suppressed = False
+        for line_no in range(start_line, end_line + 1):
+            key = (f.file_path.as_posix(), line_no)
+            entry = suppressions.get(key)
+            if entry is None and key not in suppressions:
+                continue
+            if entry is None or f.signal_type.value in entry:
+                is_suppressed = True
+                break
+
+        if is_suppressed:
             suppressed.append(f)
         else:
             active.append(f)

@@ -9,7 +9,13 @@ from drift.embeddings import (  # noqa: E501
     _EMBEDDINGS_AVAILABLE,
     EmbeddingService,
     get_embedding_service,
+    reset_embedding_service,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_service_singleton() -> None:
+    reset_embedding_service()
 
 # ---------------------------------------------------------------------------
 # Graceful degradation without sentence-transformers
@@ -68,6 +74,24 @@ class TestEmbeddingServiceDegraded:
             svc = EmbeddingService()
             result = svc.embed_text("hello world")
             assert result is None
+
+    def test_singleton_reuses_instance_with_same_parameters(self):
+        if not _EMBEDDINGS_AVAILABLE:
+            assert get_embedding_service() is None
+            return
+
+        s1 = get_embedding_service(model_name="all-MiniLM-L6-v2", batch_size=32)
+        s2 = get_embedding_service(model_name="all-MiniLM-L6-v2", batch_size=32)
+        assert s1 is s2
+
+    def test_singleton_reinitializes_on_parameter_change(self):
+        if not _EMBEDDINGS_AVAILABLE:
+            assert get_embedding_service() is None
+            return
+
+        s1 = get_embedding_service(model_name="all-MiniLM-L6-v2", batch_size=32)
+        s2 = get_embedding_service(model_name="all-MiniLM-L6-v2", batch_size=16)
+        assert s1 is not s2
 
 
 # ---------------------------------------------------------------------------
