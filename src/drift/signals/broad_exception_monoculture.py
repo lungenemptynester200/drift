@@ -49,6 +49,8 @@ _BOUNDARY_STEMS: frozenset[str] = frozenset({
 _BOUNDARY_DECORATORS: frozenset[str] = frozenset({
     "app.exception_handler",
     "app.errorhandler",
+    "app_errorhandler",
+    "errorhandler",
     "exception_handler",
     "error_handler",
     "receiver",
@@ -120,7 +122,11 @@ class BroadExceptionMonocultureSignal(BaseSignal):
             files_in_module = {fp for fp, _ in handler_list}
             if all(_is_error_boundary(fp) for fp in files_in_module):
                 continue
-            prs_in_module = module_parse_results.get(module_key, [])
+            prs_in_module = [
+                pr
+                for pr in module_parse_results.get(module_key, [])
+                if pr.file_path in files_in_module
+            ]
             if prs_in_module and all(_has_boundary_decorator(pr) for pr in prs_in_module):
                 continue
 

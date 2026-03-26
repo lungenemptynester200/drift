@@ -1657,6 +1657,164 @@ GCD_SIMPLE_TN = GroundTruthFixture(
 )
 
 
+# ── New fixtures: edge cases for signal improvements ─────────────────────
+
+DIA_URL_FRAGMENT_TN = GroundTruthFixture(
+    name="dia_url_fragment_tn",
+    description="README with URL-like refs (auth/, db/) → should NOT fire DIA",
+    files={
+        "README.md": """\
+            # API Service
+
+            ## Authentication
+
+            The `auth/` endpoint handles OAuth tokens.
+            Use `db/` prefix for database admin routes.
+
+            ```bash
+            curl http://localhost:8000/auth/login
+            curl http://localhost:8000/db/status
+            ```
+        """,
+        "src/__init__.py": "",
+        "src/main.py": """\
+            def main():
+                pass
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.DOC_IMPL_DRIFT,
+            file_path="README.md",
+            should_detect=False,
+            description="auth/ and db/ are API path fragments, not project dirs",
+        ),
+    ],
+)
+
+BEM_DECORATOR_BOUNDARY_TN = GroundTruthFixture(
+    name="bem_decorator_boundary_tn",
+    description="Module with @app.errorhandler decorated broad handlers → should NOT fire BEM",
+    files={
+        "handlers/__init__.py": "",
+        "handlers/errors.py": """\
+            import logging
+            logger = logging.getLogger(__name__)
+
+            def app_errorhandler(func):
+                return func
+
+            @app_errorhandler
+            def handle_404(error):
+                try:
+                    return {"error": "not found"}
+                except Exception:
+                    logger.error("404 handler failed")
+
+            @app_errorhandler
+            def handle_500(error):
+                try:
+                    return {"error": "internal"}
+                except Exception:
+                    logger.error("500 handler failed")
+
+            @app_errorhandler
+            def handle_403(error):
+                try:
+                    return {"error": "forbidden"}
+                except Exception:
+                    logger.error("403 handler failed")
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.BROAD_EXCEPTION_MONOCULTURE,
+            file_path="handlers/",
+            should_detect=False,
+            description="Error-handler decorated functions are boundary by design",
+        ),
+    ],
+)
+
+GCD_DECORATOR_GUARD_TN = GroundTruthFixture(
+    name="gcd_decorator_guard_tn",
+    description="Module with @validate decorated functions → should NOT fire GCD",
+    files={
+        "api/__init__.py": "",
+        "api/endpoints.py": """\
+            def validate(func):
+                return func
+
+            @validate
+            def create_item(data, schema, options):
+                result = []
+                for item in data:
+                    out = {}
+                    for key, spec in schema.items():
+                        val = item.get(key)
+                        if spec == "upper":
+                            out[key] = val.upper()
+                        elif spec == "lower":
+                            out[key] = val.lower()
+                        elif spec == "strip":
+                            out[key] = val.strip()
+                        else:
+                            out[key] = val
+                    if options.get("filter_key"):
+                        if out.get(options["filter_key"]):
+                            result.append(out)
+                    else:
+                        result.append(out)
+                return result
+
+            @validate
+            def update_item(records, dimensions, funcs):
+                groups = {}
+                for r in records:
+                    key = tuple(r.get(d) for d in dimensions)
+                    if key not in groups:
+                        groups[key] = []
+                    groups[key].append(r)
+                out = []
+                for key, rows in groups.items():
+                    entry = dict(zip(dimensions, key))
+                    for fn in funcs:
+                        vals = [r.get(fn, 0) for r in rows]
+                        if vals:
+                            entry[fn] = sum(vals) / len(vals)
+                    out.append(entry)
+                return out
+
+            @validate
+            def delete_item(data, columns, fmt):
+                lines = []
+                header = [str(c) for c in columns]
+                lines.append(",".join(header))
+                for row in data:
+                    cells = []
+                    for col in columns:
+                        val = row.get(col, "")
+                        if fmt == "quoted":
+                            cells.append(f'"' + str(val) + '"')
+                        elif fmt == "raw":
+                            cells.append(str(val))
+                        else:
+                            cells.append(str(val).strip())
+                    lines.append(",".join(cells))
+                return "\\n".join(lines)
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.GUARD_CLAUSE_DEFICIT,
+            file_path="api/",
+            should_detect=False,
+            description="All functions use @validate decorator → guarded externally",
+        ),
+    ],
+)
+
+
 # ── Registry of all fixtures ─────────────────────────────────────────────
 
 ALL_FIXTURES: list[GroundTruthFixture] = [
@@ -1685,10 +1843,12 @@ ALL_FIXTURES: list[GroundTruthFixture] = [
     DIA_TRUE_NEGATIVE,
     DIA_ADR_MISMATCH_TP,
     DIA_ADR_FILE_TP,
+    DIA_URL_FRAGMENT_TN,
     BEM_TRUE_POSITIVE,
     BEM_TRUE_NEGATIVE,
     BEM_MIXED_TP,
     BEM_BOUNDARY_TN,
+    BEM_DECORATOR_BOUNDARY_TN,
     TPD_TRUE_POSITIVE,
     TPD_TRUE_NEGATIVE,
     TPD_LARGE_SUITE_TP,
@@ -1697,6 +1857,7 @@ ALL_FIXTURES: list[GroundTruthFixture] = [
     GCD_TRUE_NEGATIVE,
     GCD_COMPLEX_TP,
     GCD_SIMPLE_TN,
+    GCD_DECORATOR_GUARD_TN,
 ]
 
 FIXTURES_BY_SIGNAL: dict[SignalType, list[GroundTruthFixture]] = {}

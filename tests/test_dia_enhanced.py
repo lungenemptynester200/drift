@@ -5,6 +5,7 @@ from __future__ import annotations
 from drift.signals.doc_impl_drift import (
     _extract_dir_refs_from_ast,
     _is_likely_proper_noun,
+    _is_noise_dir_reference,
     _is_url_segment,
     _is_version_or_numeric_segment,
 )
@@ -32,6 +33,30 @@ class TestUrlSegmentFilter:
 
 
 class TestNoiseFilters:
+    def test_noise_dir_reference_filters_known_false_positives(self):
+        for segment in ["TypeScript", "auth", "db", "8000", "Basic", "Key"]:
+            assert _is_noise_dir_reference(segment) is True
+
+    def test_noise_dir_reference_keeps_legitimate_repo_segments(self):
+        for segment in [
+            "MDS",
+            "drift",
+            "ingestion",
+            "models",
+            "myproject",
+            "node_modules",
+            "output",
+            "path",
+            "code",
+            "home",
+            "items",
+            "user",
+            "text",
+            "IDE",
+            "linters",
+        ]:
+            assert _is_noise_dir_reference(segment) is False
+
     def test_likely_proper_noun_true(self):
         assert _is_likely_proper_noun("TypeScript") is True
         assert _is_likely_proper_noun("Basic") is True
