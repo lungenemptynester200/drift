@@ -1,0 +1,47 @@
+# Label definitions for the drift repository.
+# These labels are maintained manually. If you add a label here,
+# create it on GitHub as well: Settings → Labels.
+
+- name: good first issue
+  color: "0e8a16"
+  description: Good entry point for new contributors
+
+- name: help wanted
+  color: "0e8a16"
+  description: Extra attention is needed
+
+- name: needs reproduction
+  color: "fbca04"
+  description: A minimal reproducing case is needed before work can start
+
+- name: false-positive
+  color: "d93f0b"
+  description: Drift flags something that is not a real issue
+
+- name: false-negative
+  color: "d93f0b"
+  description: Drift misses something that is a real issue
+
+- name: signal-quality
+  color: "0075ca"
+  description: Improves precision, recall, or explainability of a signal
+
+- name: docs
+  color: "c5def5"
+  description: Documentation improvements
+
+- name: tests
+  color: "bfd4f2"
+  description: Test coverage or fixture improvements
+
+- name: bug
+  color: "d73a4a"
+  description: Something is not working as expected
+
+- name: enhancement
+  color: "a2eeef"
+  description: New feature or improvement
+
+- name: not-prioritized
+  color: "e4e4e4"
+  description: Acknowledged but not currently prioritized

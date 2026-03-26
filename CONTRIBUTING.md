@@ -51,15 +51,80 @@ New to the project? Look for issues labelled **[`good first issue`](https://gith
 
 ## What to work on
 
-Check the [open issues](https://github.com/sauremilk/drift/issues) for current priorities.
+Check the [open issues](https://github.com/sauremilk/drift/issues) for current priorities
+and the [ROADMAP.md](ROADMAP.md) for what the project needs most right now.
 
 High-value contributions:
 
-- **New detection signals** — see `src/drift/signals/base.py` for the interface
-- **TypeScript support** — tree-sitter integration (see roadmap in README)
 - **False positive fixes** — signal quality improvements are always welcome
-- **Documentation** — usage examples, configuration how-tos
+- **Reproducible fixtures** — ground-truth cases that sharpen precision/recall
+- **Finding explanations** — improve `reason` and `next_action` text so findings are actionable
+- **Documentation** — per-signal examples, configuration how-tos
 - **Benchmarks** — run drift on new open-source repos and report findings
+- **New detection signals** — see `src/drift/signals/base.py` for the interface
+
+## How we evaluate contributions
+
+Drift follows a strict quality hierarchy ([POLICY.md §7](POLICY.md)).
+Contributions are evaluated in this order of importance:
+
+1. **Credibility** — does it make findings more trustworthy and reproducible?
+2. **Signal precision** — does it reduce false positives or false negatives?
+3. **Clarity** — does it make findings easier to understand and act on?
+4. **Adoptability** — does it make drift easier to set up or integrate?
+5. **Trend capability** — does it improve temporal or delta analysis?
+6. **Comfort features** — additional formats, UI, convenience
+
+A contribution that improves credibility is always prioritized over one that
+adds a comfort feature — even if the feature is well-implemented.
+
+### What we prefer
+
+- Reproducible test fixtures (ground-truth cases with expected findings)
+- Improved finding explanations with concrete next actions
+- False-positive/false-negative reductions backed by tests
+- Per-signal documentation with code examples
+- Small, focused changes over broad refactors
+
+### What we don't accept
+
+PRs that only produce one of the following will be closed with an explanation:
+
+- More output without better insight
+- More complexity without measurable benefit
+- More surface area without better analysis
+- Features whose contribution to signal quality or credibility cannot be named
+
+This is not about gatekeeping — it protects the project from well-intentioned
+work that dilutes finding quality. When in doubt, open a
+[contribution proposal](https://github.com/sauremilk/drift/issues/new?template=contribution_proposal.md) first.
+
+## Typical first contributions
+
+Not sure where to start? These are proven entry points that deliver real value:
+
+| Contribution | Difficulty | Example |
+|---|---|---|
+| Ground-truth fixture | Easy | Add a minimal code sample that should (or should not) trigger PFS |
+| FP/FN report | Easy | Document a case where drift gives the wrong result, with reproduction steps |
+| Finding explanation | Easy | Improve a vague `reason` string to name the specific structural problem |
+| Edge-case test | Easy | Test that `drift analyze` handles an empty repo without crashing |
+| Signal documentation | Easy–Medium | Write a docs page for TVS or SMS with concrete before/after code |
+| Scoring test | Medium | Add a test for a boundary condition in the composite score calculation |
+
+Contributions that are **not code** are equally valuable: well-documented false
+positives, minimal reproduction repos, and signal documentation all advance the
+project.
+
+## Maintainer feedback commitment
+
+- **First response within 72 hours** on issues and PRs.
+- **Rejections include a reason** referencing a specific quality criterion.
+- **First-time contributors get guidance**, not just pass/fail.
+- If a PR needs changes, we explain what and why — not just "fix this".
+
+If you don't hear back within 72 hours, ping the thread — it's a process
+failure, not a signal that your work isn't valued.
 
 ## Adding a new signal
 
@@ -186,8 +251,10 @@ A release is allowed only when all of the following are true:
 	If there are multiple unrelated themes, split them into separate releases.
 3. **SemVer is explicit:** The release is clearly classified as patch, minor, or major before tagging.
 4. **Changelog is curated, not dumped:** The changelog groups changes by user impact (`Added`, `Changed`, `Fixed`) instead of mirroring raw commit history.
-5. **Evidence is complete:** Any feature content in the release already satisfies the feature-evidence gate.
+5. **Contributors are credited:** First-time contributors are acknowledged by name in the changelog entry (e.g., `- Improved AVS clarity (#42, thanks @contributor)`).
+6. **Evidence is complete:** Any feature content in the release already satisfies the feature-evidence gate.
 6. **Release state is reproducible:** Version bump, changelog entry, tag, and release notes all point to the same release scope.
+7. **Release scope fits one sentence:** If you can't summarize the release in one sentence plus at most 5 curated bullets, split it.
 
 The following are not allowed:
 

@@ -6,6 +6,24 @@
 
 <!-- Use: Closes #123 / Fixes #123 / Related #123 -->
 
+## Policy criterion served
+
+<!-- Which quality goal does this PR advance? Check at least one. -->
+
+- [ ] Credibility (reproducibility, determinism)
+- [ ] Signal precision (fewer false positives/negatives)
+- [ ] Finding clarity (better explanations, actionable next steps)
+- [ ] Adoptability (easier setup, onboarding, docs)
+- [ ] Trend capability (temporal analysis, delta tracking)
+- [ ] None of the above — explain why this is still valuable:
+
+## First contribution?
+
+- [ ] This is my first contribution to drift
+
+<!-- First-time contributors: don't worry about getting everything perfect.
+     Maintainers will guide you through the review process. -->
+
 ## Type of change
 
 - [ ] Bug fix

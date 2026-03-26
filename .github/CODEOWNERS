@@ -1,0 +1,20 @@
+# Drift code ownership — used for automatic PR review requests.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @sauremilk
+
+# Signal detectors
+src/drift/signals/ @sauremilk
+
+# Scoring and aggregation
+src/drift/scoring/ @sauremilk
+
+# Ingestion (AST, git, file discovery)
+src/drift/ingestion/ @sauremilk
+
+# Tests and fixtures
+tests/ @sauremilk
+
+# Documentation site
+docs-site/ @sauremilk

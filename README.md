@@ -377,10 +377,28 @@ Further reading:
 
 ## Contributing
 
-We welcome bug reports, signal improvements, and documentation fixes.
+Drift seeks contributions that increase the credibility of static architecture findings: reproducible cases, better explainability, fewer false alarms, and clearer next actions.
+
 If you run drift on your codebase and get surprising results — good or bad — please [open an issue](https://github.com/sauremilk/drift/issues) or start a [discussion](https://github.com/sauremilk/drift/discussions).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and good first issues.
+### New here? Start contributing
+
+1. Pick an issue labelled [`good first issue`](https://github.com/sauremilk/drift/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+2. `git clone https://github.com/sauremilk/drift.git && cd drift && make install`
+3. `make test-fast` — confirm everything passes
+4. Make your change, then open a PR
+
+**Typical first contributions:**
+
+- Add a ground-truth fixture for a false positive or false negative
+- Improve a finding's explanation text to be more actionable
+- Write a test for an untested edge case
+- Fix or extend signal documentation with a concrete example
+
+**What we value most:** reproducibility, explainability, false-alarm reduction.\
+**What we deprioritize:** new output formats without insight value, comfort features, complexity without analysis improvement.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide and [ROADMAP.md](ROADMAP.md) for current priorities.
 
 ## Documentation map
 

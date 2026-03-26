@@ -16,6 +16,7 @@ LICENSE
 Makefile
 POLICY.md
 README.md
+ROADMAP.md
 SECURITY.md
 action.yml
 audit_results
