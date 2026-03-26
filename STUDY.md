@@ -304,19 +304,23 @@ This reflects the heuristic's conservative design: it avoids false positives at 
 
 1. **Author-developed test subjects.** The author developed both drift and PWBS. While 3 of 5 repos are independent open-source projects, there is an inherent risk that drift's signals align more naturally with the author's coding patterns. Replication on a fully independent corpus is needed to generalize beyond this sample.
 
-2. **Ground-truth classification is single-rater.** All 291 findings were classified by one rater using predefined criteria. Inter-rater reliability was not measured. Signal-specific criteria (§3.1) were designed to be objective and reproducible, but edge cases (particularly AVS and EDS disputed findings) would benefit from multi-rater validation.
+2. **Ground-truth classification is single-rater with non-circular heuristics.** All 286 findings were classified by automated structural heuristics (title keywords, path patterns) rather than direct score thresholds, to avoid circular validation. However: (a) the heuristics were designed by the tool author, creating an indirect circularity risk; (b) 51 findings are Disputed because no structural confirmation exists; (c) inter-rater reliability has not been measured. The annotation tooling (`scripts/generate_annotation_sheet.py`) is available for independent multi-rater validation.
 
-3. **Synthetic mutation benchmark.** The controlled mutation benchmark uses artificial code, not real-world drift that evolved organically. Injected mutations may be more or less detectable than naturally occurring patterns. The 86% recall should be interpreted as a lower bound on synthetic patterns, not a guarantee on organic code.
+3. **TVS classified as 100% Disputed.** All 30 TVS findings lack structural keywords in their titles, causing the non-circular classifier to mark them Disputed. This is a classification-method artefact, not evidence that TVS findings are wrong. TVS strict precision should be interpreted as "unconfirmed" rather than "zero."
 
-4. **Shallow clones limit temporal signals.** Public repos were cloned with `--depth 50`, which underreports TVS and limits git history for SMS baseline computation. PWBS was analyzed against a local checkout without recent commits. TVS findings across repos are not directly comparable.
+4. **Synthetic mutation benchmark.** The controlled mutation benchmark uses artificial code, not real-world drift that evolved organically. Injected mutations may be more or less detectable than naturally occurring patterns. The 86% recall should be interpreted as a lower bound on synthetic patterns, not a guarantee on organic code.
 
-5. **Default configuration only.** No custom layer-boundary policies were applied. FastAPI's HIGH score partly reflects the absence of project-specific `drift.yaml` tuning. Production users would typically configure policies, which could change precision/recall characteristics.
+5. **Shallow clones limit temporal signals.** Public repos were cloned with `--depth 50`, which underreports TVS and limits git history for SMS baseline computation. PWBS was analyzed against a local checkout without recent commits. TVS findings across repos are not directly comparable.
 
-6. **DIA precision.** The Doc-Implementation Drift signal achieves only 48% precision due to URL-fragment matching in README files. All 31 false positives in the entire study come from this single signal. DIA is assigned weight 0.00 and does not affect composite scores, but its inclusion in finding counts can inflate total finding counts. Tables in this study report DIA findings separately with footnotes.
+6. **Default configuration only.** No custom layer-boundary policies were applied. FastAPI's HIGH score partly reflects the absence of project-specific `drift.yaml` tuning. Production users would typically configure policies, which could change precision/recall characteristics.
 
-7. **AI-attribution at 0%.** The heuristic's commit-message-based approach fails to detect AI assistance in all 5 repos, including a known AI-assisted codebase (PWBS). This metric is currently uninformative and should not be used as evidence for or against AI involvement.
+7. **DIA precision (63%).** The Doc-Implementation Drift signal still has lower precision than active signals, with 9 FPs from URL-fragment and ambiguous-directory-name matching. DIA is assigned weight 0.00 and does not affect composite scores. Tables in this study report DIA findings separately with footnotes.
 
-8. **Single point in time.** Results are a snapshot. drift's `trend` command is designed to track score evolution over repeated runs, which would provide stronger evidence of drift trajectory.
+8. **AVS sample size (n=20).** Although the sample size increased from 5 to 20, it remains below n>=30 for reliable per-signal precision estimation. The 30% strict precision (6 TP, 4 FP, 10 Disputed) should be treated with caution.
+
+9. **AI-attribution at 0%.** The heuristic's commit-message-based approach fails to detect AI assistance in all 5 repos, including a known AI-assisted codebase (PWBS). This metric is currently uninformative and should not be used as evidence for or against AI involvement.
+
+10. **Single point in time.** Results are a snapshot. drift's `trend` command is designed to track score evolution over repeated runs, which would provide stronger evidence of drift trajectory.
 
 ---
 

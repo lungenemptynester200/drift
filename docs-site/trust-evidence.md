@@ -13,8 +13,9 @@ It is designed for teams that need to answer a practical question before rollout
 
 ## Benchmark evidence
 
-- 80% strict precision on a score-weighted sample of 291 findings across 5 repositories (automated heuristic classification; upper-bound estimate — independent multi-rater validation pending)
-- 0 confirmed false positives for the 6 active scoring signals (n=202); all FPs from DIA (weight 0.00)
+- 77% strict precision / 95% lenient on a score-weighted sample of 286 findings across 5 repositories (non-circular heuristic classification; 51 Disputed findings where only score evidence available — independent multi-rater validation pending)
+- 6 active scoring signals: 78% strict / 98% lenient precision (n=259, 6 FP: 4 AVS config-imports, 2 MDS async/sync pairs)
+- DIA (weight 0.00): 63% strict precision (n=27, 9 FP from URL/directory-name heuristics)
 - 86% detection rate on a controlled mutation benchmark of 14 author-designed synthetic patterns (not a population recall estimate)
 - self-analysis of drift reports a score of 0.442 (MEDIUM)
 
@@ -28,7 +29,10 @@ The strongest current claim is that drift provides a deterministic and inspectab
 
 ## Known limitations to keep visible
 
+- classification uses non-circular structural heuristics; 51 of 286 findings are Disputed (score-only evidence, no structural confirmation)
 - the labeled precision sample is score-weighted and over-represents higher-confidence findings
+- TVS shows 0% strict precision because titles lack structural keywords — this reflects a classification-method limitation, not necessarily signal quality
+- AVS sample size (n=20) remains below the n≥30 threshold for reliable per-signal precision
 - recall was measured on a synthetic mutation benchmark, not on every naturally evolving repository shape
 - DIA currently has known precision limitations and is excluded from the composite score
 - temporal signals depend on repository history quality and clone depth
