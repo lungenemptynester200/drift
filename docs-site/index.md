@@ -19,6 +19,13 @@ pip install drift-analyzer
 drift analyze --repo .
 ```
 
+## Choose Your Path
+
+- **Casual user:** start with [Quick Start](getting-started/quickstart.md) and [Configuration](getting-started/configuration.md) to get a first useful run.
+- **Evaluator:** review [Example Findings](product/example-findings.md), [Trust and Evidence](trust-evidence.md), and [Stability and Release Status](stability.md) before deciding on adoption.
+- **Contributor:** go to [Contributing](contributing.md) when you want to submit a fix, improve docs, or help reduce noise in the signals.
+- **Core maintainer:** use [Contributing](contributing.md), [Product Strategy](product-strategy.md), and the repository developer guide for the full quality and roadmap context.
+
 Recommended next steps:
 
 - [Quick Start](getting-started/quickstart.md)

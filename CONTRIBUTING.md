@@ -2,6 +2,16 @@
 
 Thanks for your interest in contributing! Drift is under active development and welcomes bug fixes, new signals, and documentation improvements.
 
+## Who this page is for
+
+This page is for contributors and maintainers.
+
+- If you want to try drift as a user, start in [README.md](README.md) or the docs quickstart instead of this governance-heavy path.
+- If you are evaluating drift for adoption, review the example findings, trust material, and release status first.
+- If you are ready to contribute code or docs, continue here.
+
+The standards below stay intentionally strict because they protect result credibility, signal quality, and release hygiene.
+
 ## Quick start
 
 ```bash

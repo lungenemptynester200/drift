@@ -2,6 +2,16 @@
 
 See [CONTRIBUTING.md](https://github.com/sauremilk/drift/blob/main/CONTRIBUTING.md) for the full contributing guide.
 
+## Who this page is for
+
+This page is for contributors and maintainers rather than first-time evaluators.
+
+- If you want to try drift quickly, start with [Quick Start](getting-started/quickstart.md).
+- If you are assessing whether drift is credible for your team, read [Example Findings](product/example-findings.md), [Trust and Evidence](trust-evidence.md), and [Stability and Release Status](stability.md) first.
+- If you are ready to contribute code or docs, continue into the contributing guide.
+
+The project keeps strict contribution standards because they protect reproducibility, signal quality, and trust in findings.
+
 ## Quick Start
 
 ```bash

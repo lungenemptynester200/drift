@@ -36,6 +36,13 @@ drift analyze --repo .
 
 That gives you a drift score, the hottest modules, and actionable findings in one run.
 
+## Choose your path
+
+- **Casual user:** install drift, run `drift analyze --repo .`, and start with [Quick Start](docs-site/getting-started/quickstart.md) and [Configuration](docs-site/getting-started/configuration.md).
+- **Evaluator:** review [Example Findings](docs-site/product/example-findings.md), [Trust and Evidence](docs-site/trust-evidence.md), and [Stability and Release Status](docs-site/stability.md) before deciding on rollout.
+- **Contributor:** use [CONTRIBUTING.md](CONTRIBUTING.md) once you are ready to submit a fix, improve docs, or work on signal quality.
+- **Core maintainer:** use [CONTRIBUTING.md](CONTRIBUTING.md), [DEVELOPER.md](DEVELOPER.md), and [POLICY.md](POLICY.md) for the full quality, architecture, and release guardrails.
+
 ## Release status
 
 The PyPI classifier remains `Development Status :: 3 - Alpha` intentionally.
