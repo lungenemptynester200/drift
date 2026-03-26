@@ -168,6 +168,10 @@ class PatternFragmentationSignal(BaseSignal):
                             "canonical_variant": canonical[:60],
                             "module": module_path.as_posix(),
                             "total_instances": total,
+                            "deliberate_pattern_risk": (
+                                "May reflect architecture transition or deliberate variation. "
+                                "Review whether variants serve distinct purposes."
+                            ),
                         },
                     )
                 )

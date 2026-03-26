@@ -246,6 +246,10 @@ class MutantDuplicateSignal(BaseSignal):
                                 }
                                 for fn in group
                             ],
+                            "deliberate_pattern_risk": (
+                                "May reflect deliberate polymorphism "
+                                "(Strategy, Adapter, Plugin). Verify intent before consolidating."
+                            ),
                         },
                     )
                 )
@@ -341,6 +345,10 @@ class MutantDuplicateSignal(BaseSignal):
                         "function_b": b.name,
                         "file_a": a.file_path.as_posix(),
                         "file_b": b.file_path.as_posix(),
+                        "deliberate_pattern_risk": (
+                            "May reflect deliberate polymorphism "
+                            "(Strategy, Adapter, Plugin). Verify intent before consolidating."
+                        ),
                     }
                     if use_hybrid:
                         metadata["ast_similarity"] = round(ast_sim, 3)

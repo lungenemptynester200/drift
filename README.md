@@ -354,6 +354,17 @@ Drift is designed to earn trust through determinism and reproducibility:
 - signal-specific interpretation instead of score-only messaging
 - explicit benchmarking and known-limitations documentation
 
+### Interpreting the score
+
+The drift score measures **structural entropy**, not code quality. Keep these principles in mind:
+
+- **Interpret deltas, not snapshots.** Use `drift trend` to track changes over time. A single score in isolation has limited meaning.
+- **Temporary increases are expected during migrations.** Two coexisting patterns (old and new) will raise PFS/MDS signals. This is the migration happening, not a problem.
+- **Deliberate polymorphism is not erosion.** Strategy, Adapter, and Plugin patterns produce structural similarity that MDS flags as duplication. Findings include a `deliberate_pattern_risk` hint — verify intent before acting.
+- **The score rewards reduction, not correctness.** Deleting code lowers the score just like refactoring does. Do not optimize for a low score — optimize for understood, intentional structure.
+
+For a detailed discussion of epistemological boundaries (what drift can and cannot see), see [STUDY.md §14](STUDY.md).
+
 > **Drift vs. erosion:** Without `layer_boundaries` in `drift.yaml`, drift detects *emergent drift* — structural patterns that diverge without explicit prohibition. With configured `layer_boundaries`, drift additionally performs *conformance checking* against a defined architecture. Both modes are complementary: drift does not replace dedicated architecture conformance frameworks (e.g. [PyTestArch](https://github.com/zyskarch/pytestarch) for executable layer rules in pytest), but catches cross-file coherence issues those tools do not model.
 
 Start with the strongest, most actionable findings first. If a signal is noisy for your repository shape, tune or de-emphasize it instead of forcing an early hard gate.

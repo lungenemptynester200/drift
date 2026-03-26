@@ -1028,3 +1028,146 @@ The tool produces the fewest findings (and lowest score) on carefully hand-craft
 **Limitations:** DIA precision (59%) has improved significantly but remains below scoring threshold. AI-attribution is currently uninformative (0% across all repos). Ground-truth classification is single-rater. TS corpus precision has not been formally validated via ground-truth annotation — this is the next step. Replication on a fully independent corpus remains the most important next step for external validity.
 
 **The value of drift is delta, not absolute.** Track your score over time with `drift trend`. A rising score means your codebase is losing coherence. A stable or falling score means you're maintaining design intent — even with AI-generated code in the mix.
+
+---
+
+## 14. Epistemological Limits
+
+This section documents the known epistemological boundaries of drift's
+analysis model, derived from a systematic self-critique (EPISTEMICS.md). The
+limits are inherent to the representational model, not implementation gaps.
+
+### 14.1 Coherence ≠ Quality (EPISTEMICS §1)
+
+Drift measures structural entropy — not code quality. The scoring formula
+rewards uniformity and penalizes variance. This creates two classes of
+false-positive risk:
+
+**Architecture transitions.** A team migrating from synchronous to async
+error-handling will see PFS and MDS fire during the transition, because two
+patterns coexist. The rising score *is* the migration happening. A low score
+in this phase would mean nobody has started. Temporary coherence loss is a
+necessary artifact of structural learning.
+
+**Deliberate polymorphism.** Strategy patterns, Adapter hierarchies, Plugin
+systems, and Codec frameworks intentionally contain structurally similar
+implementations. MDS detects the duplication correctly — but the duplication
+*is* the architecture. Interface conformity produces the similarity that drift
+flags as anomaly.
+
+**Mitigation (v0.5):** MDS and PFS findings now carry a
+`deliberate_pattern_risk` metadata field that warns users to verify intent
+before acting. The rich output footer includes interpretation guidance. Users
+can suppress known-intentional patterns via `exclude` globs in `drift.yaml`.
+
+### 14.2 Consistent Wrongness (EPISTEMICS §2)
+
+The most dangerous erosion occurs when the entire codebase *uniformly* does
+the wrong thing — e.g., every module validates permissions correctly against
+the wrong permission model (RBAC implemented, ABAC needed), or all endpoints
+use the same error-handling pattern that silently swallows critical exceptions.
+
+Drift cannot detect this. A hypothetical Semantic Misalignment Signal (SMA)
+would require access to a formal specification of intent — which does not
+exist as machine-readable artifact in most projects. This is an ontological
+limit, not a technical one: **syntax is observable, semantics is not.
+Coherence is measurable, correctness is not.**
+
+**Partial mitigation (v0.5):** The consistency proxy signals (BEM, TPD, GCD)
+address a narrow subset of this problem — patterns that are consistently
+*present* but structurally suspect (broad exception handlers, test
+monocultures, missing guard clauses). They cannot detect *semantic*
+misalignment, but they surface structural consistency smells that correlate
+with semantic problems.
+
+### 14.3 Score as Entropy, Not Quality (EPISTEMICS §3)
+
+The Django 6.0 case (§10) demonstrates the score's true nature: the score
+dropped -0.016 when 116 deprecation-removal commits cleaned up legacy
+compatibility layers. The score would also have dropped if *productive* code
+had been deleted. It rewards reduction, not correctness.
+
+**Goodhart risk in teams that optimize on the score:**
+
+1. **Deletion bias** — the fastest way to lower the score is to delete code,
+   not refactor it.
+2. **Uniformity bias** — teams copy the most common pattern instead of
+   choosing the right one for a new use-case.
+3. **Refactoring avoidance** — deep refactorings cause short-term score
+   increases while two patterns coexist; teams abort before completion.
+4. **Sophistication ceiling** — complex but correct architectures
+   (Event-Sourcing, CQRS, Ports/Adapters) generate more signals than
+   simple MVC structures.
+
+**Mitigation (v0.5):** The interpretation footer in rich output explicitly
+states that the score measures entropy, not quality, and that temporary
+increases during migrations are expected. The fundamental guidance remains:
+**interpret deltas, not snapshots**.
+
+### 14.4 Limits of Determinism (EPISTEMICS §4)
+
+Drift's determinism principle (ADR-001) guarantees reproducibility but creates
+a hard boundary at the semantic level. What drift can see:
+
+| Class | Signal | Detectable? |
+| ----- | ------ | :---------: |
+| Syntactic drift | PFS, MDS | ✓ |
+| Topological drift | AVS, SMS | ✓ |
+| Temporal drift | TVS | ✓ |
+| Documentation drift | DIA | ✓ |
+| Consistency smell | BEM, TPD, GCD | ✓ (proxy) |
+
+What drift **cannot** see deterministically:
+
+| Class | Why | Horizon |
+| ----- | --- | ------- |
+| **Idiomatic drift** — syntactically valid code using foreign idioms (Java patterns in Python) | Would require a trained baseline model of codebase idioms | Theoretically computable (AST frequency distributions), not yet implemented |
+| **Intention drift** — code does the wrong thing consistently | Requires formal specification of intent | Ontological limit; not implementable without external spec |
+| **API contract drift** — behavior changes without signature changes | Requires semantic analysis or property-based testing | Not deterministically detectable from AST alone |
+| **Emergent coupling** — modules that co-change without import edges | Requires co-change matrix from git log | Partially addressed by AVS Hidden Coupling (§12.6) |
+
+**The tipping point:** As AI-generated code improves, it produces *less*
+syntactic drift (consistent patterns) but *more* semantic drift (looks the
+same, does different things). Drift's determinism protects against
+irreproducible analysis but makes it blind to exactly the erosion class that
+will dominate in AI-heavy codebases.
+
+### 14.5 States vs. Processes (EPISTEMICS §5)
+
+All signals measure *snapshots*: how many patterns exist now? What does the
+import graph look like now? Even TVS, which appears temporal, measures current
+churn — not the development trajectory.
+
+The deeper question in an AI-dominated world is not "How coherent is the
+codebase?" — since AI can produce coherence cheaply — but **"Does anyone
+understand why the codebase is the way it is?"** This is a question about
+epistememic integrity, not structural coherence.
+
+Drift would need to evolve from a **coherence meter** to a
+**comprehensibility radar** to address this. Concretely:
+
+1. **From pattern counting to decision archaeology** — track whether
+   structural changes have traceable rationale in commit history.
+2. **From structure to delta-readability** — measure how predictable the
+   next change would be for a new developer.
+3. **From single codebase to codebase-as-conversation** — treat the
+   human-AI dialog as the analysis unit, not just the resulting code.
+
+These are vision-level changes that go beyond the current architecture. They
+are documented here to bound expectations and guide future evolution.
+
+### 14.6 Summary of Epistemological Boundaries
+
+| Boundary | Nature | Addressable? | Status in v0.5 |
+| -------- | ------ | :----------: | --------------- |
+| Coherence ≠ Quality | Inherent to entropy-based measurement | Partially — via disambiguation | `deliberate_pattern_risk` metadata on MDS/PFS |
+| Consistent wrongness | Ontological (syntax ≠ semantics) | No — would need formal spec | BEM/TPD/GCD as narrow proxies |
+| Score = entropy | Inherent to scoring model | Partially — via guidance | Interpretation footer in output |
+| Semantic drift | Beyond deterministic analysis | No (except idiomatic drift) | Documented as hard limit |
+| State vs. process | Architectural paradigm | Future evolution | Vision documented |
+
+These boundaries are not bugs to fix but constraints to communicate. Drift's
+value proposition remains valid within its operational domain: detecting
+*structural* erosion in codebases where syntactic coherence is a meaningful
+proxy for design health. The epistemological limits define where that proxy
+breaks down.

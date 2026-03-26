@@ -220,6 +220,11 @@ def _format_finding_detail(f: Finding) -> Text:
     if ctx_tags:
         text.append(f"  [ctx: {', '.join(ctx_tags)}]\n", style="cyan italic")
 
+    # Deliberate-pattern disambiguation (EPISTEMICS §1/§3)
+    dpr = f.metadata.get("deliberate_pattern_risk")
+    if dpr:
+        text.append(f"  ⚠ {dpr}\n", style="dim italic")
+
     return text
 
 
@@ -337,6 +342,22 @@ def render_full_report(
         max_items=max_findings,
         console=console,
         sort_by=sort_by,
+    )
+
+    # Interpretation guidance footer
+    console.print()
+    console.print(
+        Panel(
+            "[dim]The drift score measures structural entropy, not code quality. "
+            "A rising score signals coherence loss — but temporary increases "
+            "during migrations or refactorings are expected.\n"
+            "Deliberate polymorphism (Strategy, Adapter, Plugin patterns) can "
+            "trigger MDS/PFS findings that reflect correct design, not erosion.\n"
+            "Use [bold]drift trend[/bold] to track deltas over time. "
+            "Interpret single snapshots with caution.[/dim]",
+            title="[dim bold]Interpretation[/dim bold]",
+            border_style="dim",
+        )
     )
 
 
