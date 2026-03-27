@@ -225,7 +225,7 @@ class TestCircularMutations:
         circular = [f for f in findings if "Circular" in f.title]
         assert len(circular) >= 1
         assert circular[0].fix is not None
-        assert "Zirkuläre" in circular[0].fix or "Zyklus" in circular[0].fix
+        assert "Circular dependency" in circular[0].fix or "cycle" in circular[0].fix.lower()
 
     def test_three_module_cycle(self):
         results = [
@@ -317,7 +317,7 @@ class TestPolicyViolationMutations:
         policy = [f for f in findings if "Policy" in f.title]
         assert len(policy) >= 1
         assert policy[0].fix is not None
-        assert "Entferne" in policy[0].fix
+        assert "Remove import" in policy[0].fix
         assert policy[0].severity == Severity.HIGH
 
 
@@ -336,7 +336,8 @@ class TestFixTextFormat:
         findings = signal.analyze(results, {}, DriftConfig())
         upward = [f for f in findings if "Upward" in f.title]
         assert len(upward) >= 1
-        assert "Service-Schicht" in upward[0].fix or "Interface" in upward[0].fix
+        fix = (upward[0].fix or "").lower()
+        assert "service layer" in fix or "interface" in fix
 
     def test_circular_fix_mentions_dependency_inversion(self):
         results = [
@@ -347,5 +348,5 @@ class TestFixTextFormat:
         findings = signal.analyze(results, {}, DriftConfig())
         circular = [f for f in findings if "Circular" in f.title]
         assert len(circular) >= 1
-        fix = circular[0].fix
-        assert "Interface" in fix or "Dependency Inversion" in fix
+        fix = (circular[0].fix or "").lower()
+        assert "interface" in fix or "dependency inversion" in fix

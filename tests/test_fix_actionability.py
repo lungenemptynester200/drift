@@ -63,8 +63,8 @@ SPECIFICITY_PATTERNS = [
     re.compile(r"\d+"),  # Contains a number (line, count, complexity)
     re.compile(r"\b[A-Za-z_]\w*\.(py|ts|js|yaml|yml|json|md|toml|cfg)\b"),  # File reference
     re.compile(r"\b[a-z_]\w*\("),  # Function/method reference like func(
-    re.compile(r"\b(Complexity|Commits?|Autoren|Pattern|Docstring|Tests?|"
-               r"Return-Type|Import|Abhängigkeit|Service-Schicht|Interface)\b",
+    re.compile(r"\b(Complexity|Commits?|Authors?|Pattern|Docstring|Tests?|"
+               r"Return-Type|Import|Dependency|Service\s+Layer|Interface)\b",
                re.UNICODE),  # Technical terms
     re.compile(r"[A-Z][a-z]+[A-Z]"),  # CamelCase identifier
     re.compile(r"\b\d+×\b"),  # "3×" pattern count
