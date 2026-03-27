@@ -200,8 +200,8 @@ class ExplainabilityDeficitSignal(BaseSignal):
                 missing.append("Return-Type")
             fix = (
                 (
-                    f"Funktion {func.name} (Complexity {func.complexity}): "
-                    f"Füge {', '.join(missing)} hinzu."
+                    f"Function {func.name} (complexity {func.complexity}): "
+                    f"add {', '.join(missing)}."
                 )
                 if missing
                 else None

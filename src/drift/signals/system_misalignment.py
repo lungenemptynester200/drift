@@ -250,9 +250,9 @@ class SystemMisalignmentSignal(BaseSignal):
             ]
 
             fix = (
-                f"Prüfe ob {pkg_list} bewusst eingeführt wurde. "
-                f"Wenn ja, zur drift-Konfiguration unter allowed_imports hinzufügen. "
-                f"Wenn nicht, Abhängigkeit entfernen."
+                f"Verify whether {pkg_list} was intentionally introduced. "
+                f"If yes, add it to drift configuration under allowed_imports. "
+                f"If not, remove the dependency."
             )
 
             findings.append(

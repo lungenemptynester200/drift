@@ -1,22 +1,21 @@
 Output demos/demo.gif
 
-Set Shell "powershell"
-Set FontSize 16
+Set Shell "cmd"
+Set FontSize 14
 Set Width 1200
-Set Height 760
-Set Framerate 30
-Set Padding 24
+Set Height 750
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 35ms
+Set Padding 20
+Set Framerate 24
+Set PlaybackSpeed 1.0
 
-Type "drift self"
-Enter
+# Hauptbefehl - analyze auf Repo-Root
+Type "drift analyze --repo ." Sleep 400ms Enter
+
+# Warte auf vollständige Ausgabe
+Sleep 5s
+
+# Zeige CI-Gate Befehl (Exit Code 1 erwartet)
+Sleep 1500ms
+Type "drift check --fail-on high" Sleep 400ms Enter
 Sleep 3s
-
-Type "drift check --fail-on high"
-Enter
-Sleep 3s
-
-Type "drift analyze --repo . --format rich"
-Enter
-Sleep 4s

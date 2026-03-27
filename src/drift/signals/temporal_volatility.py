@@ -140,14 +140,14 @@ class TemporalVolatilitySignal(BaseSignal):
             fix_parts = []
             if freq_z > z_threshold:
                 fix_parts.append(
-                    f"{history.total_commits} Commits in 30 Tagen — erwäge Datei aufzuteilen"
+                    f"{history.total_commits} commits in 30 days — consider splitting the file"
                 )
             if author_z > z_threshold:
-                fix_parts.append(f"{history.unique_authors} Autoren — Ownership klären")
+                fix_parts.append(f"{history.unique_authors} authors — clarify ownership")
             if defect_z > z_threshold:
                 fix_parts.append(
-                    f"{history.defect_correlated_commits} defektorientierte Commits"
-                    " — Stabilisiere durch Tests und Code-Review"
+                    f"{history.defect_correlated_commits} defect-correlated commits"
+                    " — stabilize with tests and code review"
                 )
             fix = ". ".join(fix_parts) + "." if fix_parts else None
 

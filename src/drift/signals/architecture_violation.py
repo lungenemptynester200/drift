@@ -356,9 +356,9 @@ class ArchitectureViolationSignal(BaseSignal):
                             file_path=imp.source_file,
                             start_line=imp.line_number,
                             fix=(
-                                f"Entferne Import '{imp.imported_module}' in "
+                                f"Remove import '{imp.imported_module}' in "
                                 f"{imp.source_file.name}:{imp.line_number}. "
-                                f"Führe Zugriff über eine Service-Schicht oder Interface."
+                                f"Route access through a service layer or interface."
                             ),
                             metadata={
                                 "rule": boundary.name,
@@ -489,8 +489,8 @@ class ArchitectureViolationSignal(BaseSignal):
                     file_path=Path(cycle[0]),
                     related_files=[Path(p) for p in cycle[1:]],
                     fix=(
-                        f"Zirkuläre Abhängigkeit ({len(cycle)} Module): {cycle_str}. "
-                        f"Breche Zyklus durch Interface-Extraktion oder Dependency Inversion."
+                        f"Circular dependency ({len(cycle)} modules): {cycle_str}. "
+                        f"Break the cycle via interface extraction or dependency inversion."
                     ),
                     metadata={"cycle": cycle},
                 )
@@ -544,9 +544,9 @@ class ArchitectureViolationSignal(BaseSignal):
                     ),
                     file_path=Path(node),
                     fix=(
-                        f"Reduziere die transitive Kopplung von {Path(node).name} "
-                        f"durch Interface-Extraktion oder Aufteilung in "
-                        f"kleinere, stärker gekapselte Module."
+                        f"Reduce transitive coupling of {Path(node).name} "
+                        f"via interface extraction or by splitting into "
+                        f"smaller, better-encapsulated modules."
                     ),
                     metadata={
                         "blast_radius": br,
@@ -631,9 +631,8 @@ class ArchitectureViolationSignal(BaseSignal):
                     ),
                     file_path=Path(node),
                     fix=(
-                        f"Extrahiere Abstraktionen (Interfaces/Protocols) aus "
-                        f"{Path(node).name} um Abhängigkeiten umkehrbar zu "
-                        f"machen, oder reduziere die Kopplung."
+                        f"Extract abstractions (interfaces/protocols) from "
+                        f"{Path(node).name} to invert dependencies, or reduce coupling."
                     ),
                     metadata={
                         "instability": round(instability, 3),
@@ -777,10 +776,9 @@ class ArchitectureViolationSignal(BaseSignal):
                     file_path=Path(src),
                     related_files=[Path(dst)],
                     fix=(
-                        f"Entkopple {Path(src).name} von dem instabilen Modul "
-                        f"{Path(dst).name} durch Interface-Inversion oder Adapter, "
-                        f"damit Änderungen an {Path(dst).name} nicht nach oben "
-                        f"propagieren."
+                        f"Decouple {Path(src).name} from unstable module "
+                        f"{Path(dst).name} using interface inversion or adapters "
+                        f"so changes in {Path(dst).name} do not propagate upward."
                     ),
                     metadata={
                         "src_instability": round(src_i, 3),
@@ -841,10 +839,9 @@ class ArchitectureViolationSignal(BaseSignal):
                     file_path=Path(pair.file_a),
                     related_files=[Path(pair.file_b)],
                     fix=(
-                        f"Untersuche die versteckte Kopplung zwischen "
-                        f"{Path(pair.file_a).name} und {Path(pair.file_b).name}. "
-                        f"Extrahiere gemeinsame Logik oder mache die "
-                        f"Abhängigkeit explizit."
+                        f"Investigate hidden coupling between "
+                        f"{Path(pair.file_a).name} and {Path(pair.file_b).name}. "
+                        f"Extract shared logic or make the dependency explicit."
                     ),
                     metadata={
                         "co_change_count": pair.co_change_count,

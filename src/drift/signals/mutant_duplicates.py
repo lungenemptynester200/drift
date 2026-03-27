@@ -481,8 +481,8 @@ class MutantDuplicateSignal(BaseSignal):
                         start_line=fn_a.start_line,
                         related_files=[fn_b.file_path],
                         fix=(
-                            f"Prüfe ob {fn_a.name}() und {fn_b.name}() dasselbe tun. "
-                            f"Wenn ja, eine Funktion als Wrapper der anderen umschreiben."
+                            f"Check whether {fn_a.name}() and {fn_b.name}() perform "
+                            f"the same task. If so, refactor one as a wrapper for the other."
                         ),
                         metadata={
                             "embedding_similarity": round(score, 3),

@@ -3,6 +3,15 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.1] - 2026-03-27
+
+Short version: drift now enforces English-only user-facing finding remediation text to keep CLI output and demo assets language-consistent.
+
+### Fixed
+
+- **Language consistency in findings**: Translated remaining user-facing recommendation/fix strings from German to English across AVS, EDS, MDS, SMS, and TVS signal outputs.
+- **Demo output reliability**: Demo generation now reflects fully English drift output in rendered CLI captures.
+
 ## [0.8.0] - 2026-03-27
 
 Short version: drift adds a deterministic Co-Change Coupling (CCC) scoring signal to expose hidden file coupling from git history with actionable remediation.
