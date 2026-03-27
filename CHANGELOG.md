@@ -3,6 +3,21 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0] - 2026-03-27
+
+Short version: drift adds a deterministic Co-Change Coupling (CCC) scoring signal to expose hidden file coupling from git history with actionable remediation.
+
+### Added
+
+- **Co-Change Coupling (CCC) signal**: Added a dedicated deterministic signal that flags file pairs repeatedly co-changed in git history without explicit import dependency, including graceful degradation for thin history and weighted suppression for merge/bot-heavy commits.
+- **CCC recommendation handler**: Added actionable remediation guidance for hidden coupling findings, including explicit dependency direction, shared-module extraction, and regression-test hardening.
+- **CCC fixture coverage + evidence artifact**: Added isolated TP/TN unit tests with synthetic git history and a release evidence artifact documenting reproducible validation commands.
+
+### Changed
+
+- **Signal model + scoring defaults**: Extended the active scoring model to 15 signals with a conservative default weight for CCC (`0.005`) to preserve rollout stability while surfacing coupling hotspots.
+- **Documentation consistency**: Updated signal-count and scoring references across docs, study notes, and outreach material to keep public claims aligned with the live model.
+
 ## [0.7.4] - 2026-03-27
 
 Short version: release publishing now supports secure PyPI token usage for automation without exposing credentials in the repository.

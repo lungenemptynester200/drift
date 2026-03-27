@@ -84,22 +84,7 @@ def test_composite_score_ignores_unknown_signal_types():
 
 def test_composite_score_zero_weights_returns_zero():
     """All weights zero → total_weight < 0.001 → return 0 (line 108)."""
-    zero_weights = SignalWeights(
-        pattern_fragmentation=0.0,
-        architecture_violation=0.0,
-        mutant_duplicate=0.0,
-        explainability_deficit=0.0,
-        doc_impl_drift=0.0,
-        temporal_volatility=0.0,
-        system_misalignment=0.0,
-        broad_exception_monoculture=0.0,
-        test_polarity_deficit=0.0,
-        guard_clause_deficit=0.0,
-        cohesion_deficit=0.0,
-        naming_contract_violation=0.0,
-        bypass_accumulation=0.0,
-        exception_contract_drift=0.0,
-    )
+    zero_weights = SignalWeights(**{k: 0.0 for k in SignalWeights().as_dict()})
     scores = {sig: 0.5 for sig in SignalType}
     result = composite_score(scores, zero_weights)
     assert result == 0.0

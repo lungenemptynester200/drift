@@ -234,3 +234,24 @@ class TestCohesionDeficitRecommendation:
         assert len(recs) == 1
         assert "Split low-cohesion module" in recs[0].title
         assert "parse_invoice_xml" in recs[0].description
+
+
+class TestCoChangeCouplingRecommendation:
+    def test_hidden_coupling_recommendation(self):
+        finding = _make_finding(
+            SignalType.CO_CHANGE_COUPLING,
+            metadata={
+                "file_a": "src/order_service.py",
+                "file_b": "src/payment_rules.py",
+                "confidence": 0.82,
+                "co_change_weight": 4.1,
+            },
+            file_path=Path("src/order_service.py"),
+            related_files=[Path("src/payment_rules.py")],
+        )
+
+        recs = generate_recommendations([finding])
+        assert len(recs) == 1
+        assert "hidden coupling" in recs[0].title.lower()
+        assert "order_service.py" in recs[0].description
+        assert "payment_rules.py" in recs[0].description

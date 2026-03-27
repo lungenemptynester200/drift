@@ -87,6 +87,7 @@ class SignalWeights(BaseModel):
     naming_contract_violation: float = 0.04
     bypass_accumulation: float = 0.03
     exception_contract_drift: float = 0.03
+    co_change_coupling: float = 0.005
 
     def as_dict(self) -> dict[str, float]:
         return self.model_dump()

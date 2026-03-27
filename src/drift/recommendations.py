@@ -245,6 +245,37 @@ def _recommend_cohesion_deficit(finding: Finding) -> Recommendation | None:
     )
 
 
+def _recommend_co_change_coupling(finding: Finding) -> Recommendation | None:
+    """Suggest making hidden co-change dependencies explicit or decoupled."""
+    meta = finding.metadata
+    file_a = str(meta.get("file_a") or (finding.file_path.as_posix() if finding.file_path else "?"))
+
+    file_b = "?"
+    if "file_b" in meta:
+        file_b = str(meta.get("file_b"))
+    elif finding.related_files:
+        file_b = finding.related_files[0].as_posix()
+
+    confidence = float(meta.get("confidence", 0.0) or 0.0)
+    weight = float(meta.get("co_change_weight", 0.0) or 0.0)
+
+    return Recommendation(
+        title=f"Make hidden coupling explicit: {Path(file_a).name} <-> {Path(file_b).name}",
+        description=(
+            f"{Path(file_a).name} and {Path(file_b).name} co-change with "
+            f"confidence {confidence:.0%} (weighted support {weight:.2f}) "
+            "without an explicit import edge. "
+            "Choose one direction of dependency, extract shared behavior into a "
+            "small shared module or interface, and add a regression test that "
+            "fails when one side changes without the required counterpart update."
+        ),
+        effort="medium",
+        impact="high",
+        file_path=finding.file_path,
+        related_findings=[finding],
+    )
+
+
 # Dispatcher: signal type → recommendation generator
 _RECOMMENDERS = {
     SignalType.PATTERN_FRAGMENTATION: _recommend_pattern_fragmentation,
@@ -254,6 +285,7 @@ _RECOMMENDERS = {
     SignalType.TEMPORAL_VOLATILITY: _recommend_temporal_volatility,
     SignalType.SYSTEM_MISALIGNMENT: _recommend_system_misalignment,
     SignalType.COHESION_DEFICIT: _recommend_cohesion_deficit,
+    SignalType.CO_CHANGE_COUPLING: _recommend_co_change_coupling,
 }
 
 

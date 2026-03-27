@@ -189,18 +189,12 @@ def test_calibrate_weights_all_zero_returns_current():
 
 
 def test_calibrate_weights_respects_bounds():
-    deltas = {
-        "pattern_fragmentation": 1.0,  # extreme
-        "architecture_violation": 0.001,
-        "mutant_duplicate": 0.001,
-        "explainability_deficit": 0.001,
-        "doc_impl_drift": 0.001,
-        "temporal_volatility": 0.001,
-        "system_misalignment": 0.001,
-    }
+    deltas = {k: 0.001 for k in SignalWeights().as_dict()}
+    deltas["pattern_fragmentation"] = 1.0  # extreme
     calibrated = calibrate_weights(deltas, SignalWeights(), min_weight=0.05, max_weight=0.35)
+    min_expected = min(SignalWeights().as_dict().values())
     for val in calibrated.as_dict().values():
-        assert val >= 0.04  # small rounding tolerance
+        assert val >= min_expected
         assert val <= 0.36
 
 

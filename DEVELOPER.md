@@ -25,19 +25,19 @@ ingestion/          signals/            scoring/           output/
 │ ast_parser   │    │ EDS  TVS  SMS│    │ score       │    │ json        │
 │ ts_parser    │    │ DIA  BEM  TPD│    │ impact      │    │ sarif       │
 │ git_history  │───▶│ GCD  NBV  BAT│    │ module      │    │             │
-│              │    │ ECM          │    │             │    │             │
+│              │    │ ECM COD CCC  │    │             │    │             │
 └──────────────┘    └──────────────┘    └─────────────┘    └─────────────┘
      Parse              Detect              Score              Format
 ```
 
-**Data flow:** File Discovery → AST Parsing (parallel, cached) + Git History (concurrent) → 13 Signals (all scoring) → Auto-Calibration → Composite Scoring → Output Rendering
+**Data flow:** File Discovery → AST Parsing (parallel, cached) + Git History (concurrent) → 15 Signals (all scoring) → Auto-Calibration → Composite Scoring → Output Rendering
 
 **Key directories:**
 
 | Directory | Purpose |
 |---|---|
 | `src/drift/ingestion/` | File discovery, AST parsing (Python + TypeScript), git log parsing |
-| `src/drift/signals/` | 13 detection signals, each implementing `BaseSignal` |
+| `src/drift/signals/` | 15 detection signals, each implementing `BaseSignal` |
 | `src/drift/scoring/` | Weighted composite score, severity gating, module scores |
 | `src/drift/output/` | Rich terminal dashboard, JSON, SARIF formatters |
 | `src/drift/commands/` | Click CLI subcommands |
@@ -46,7 +46,7 @@ ingestion/          signals/            scoring/           output/
 
 ---
 
-## Signals (13 detectors)
+## Signals (15 detectors)
 
 | Abbrev | Signal | Detects |
 |--------|--------|---------|
@@ -63,6 +63,8 @@ ingestion/          signals/            scoring/           output/
 | **NBV** | Naming Contract Violation | Functions whose names imply a contract the body doesn't fulfil |
 | **BAT** | Bypass Accumulation | Files with high density of suppression markers (type: ignore, noqa, TODO/FIXME/HACK) |
 | **ECM** | Exception Contract Drift | Public functions whose exception profile changed across recent commits (git-based, MVP) |
+| **COD** | Cohesion Deficit | Modules that mix weakly related semantic responsibilities |
+| **CCC** | Co-Change Coupling | Files that repeatedly co-change without explicit import dependency |
 
 Adding a new signal: see [CONTRIBUTING.md → Adding a new signal](CONTRIBUTING.md#adding-a-new-signal).
 
