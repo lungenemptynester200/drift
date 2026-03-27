@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import linecache
+from pathlib import Path
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -37,6 +40,54 @@ _SIGNAL_LABELS = {
     SignalType.TEMPORAL_VOLATILITY: "TVS",
     SignalType.SYSTEM_MISALIGNMENT: "SMS",
 }
+
+
+def _read_code_snippet(
+    file_path: Path | None,
+    start_line: int | None,
+    *,
+    context: int = 1,
+    max_lines: int = 5,
+    repo_root: Path | None = None,
+) -> Text | None:
+    """Read a short code snippet from a source file.
+
+    Returns a Rich Text with line numbers and a marker on the target line,
+    or *None* if the file cannot be read.
+    """
+    if file_path is None or start_line is None:
+        return None
+
+    # Resolve absolute path
+    if file_path.is_absolute():
+        abs_path = file_path
+    elif repo_root:
+        abs_path = repo_root / file_path
+    else:
+        abs_path = file_path
+    if not abs_path.is_file():
+        return None
+
+    first = max(1, start_line - context)
+    last = start_line + max_lines - 1
+
+    lines: list[tuple[int, str]] = []
+    for lineno in range(first, last + 1):
+        line = linecache.getline(str(abs_path), lineno)
+        if not line and lineno > start_line:
+            break
+        lines.append((lineno, line.rstrip("\n\r")))
+
+    if not lines:
+        return None
+
+    text = Text()
+    gutter_width = len(str(lines[-1][0]))
+    for lineno, content in lines:
+        marker = "→" if lineno == start_line else " "
+        text.append(f"  {marker} {lineno:>{gutter_width}} │ ", style="dim")
+        text.append(f"{content}\n", style="bold" if lineno == start_line else "dim")
+    return text
 
 
 def _score_bar(score: float, width: int = 20) -> Text:
@@ -90,7 +141,7 @@ def render_summary(analysis: RepoAnalysis, console: Console | None = None) -> No
             else "red" if trend.direction == "degrading"
             else "dim"
         )
-        trend_parts: tuple = (
+        trend_parts: tuple[tuple[str, str], ...] = (
             ("  ", ""),
             (f"Δ {trend.delta:+.3f} {arrow} {trend.direction}", delta_color),
         )
@@ -194,7 +245,12 @@ def render_module_table(analysis: RepoAnalysis, console: Console | None = None) 
     console.print(table)
 
 
-def _format_finding_detail(f: Finding) -> Text:
+def _format_finding_detail(
+    f: Finding,
+    *,
+    repo_root: Path | None = None,
+    show_code: bool = True,
+) -> Text:
     """Build the detail body for a single finding panel."""
     color = _SEVERITY_COLORS.get(f.severity, "white")
     text = Text()
@@ -208,6 +264,12 @@ def _format_finding_detail(f: Finding) -> Text:
         if f.start_line:
             loc += f":{f.start_line}"
         text.append(f"  → {loc}\n", style="dim")
+
+    # Code snippet
+    if show_code and f.file_path and f.start_line:
+        snippet = _read_code_snippet(f.file_path, f.start_line, repo_root=repo_root)
+        if snippet is not None:
+            text.append_text(snippet)
 
     # All related files (Opt-2: show them all, cap at 10 + remainder note)
     if f.related_files:
@@ -246,6 +308,9 @@ def render_findings(
     max_items: int = 20,
     console: Console | None = None,
     sort_by: str = "impact",
+    *,
+    repo_root: Path | None = None,
+    show_code: bool = True,
 ) -> None:
     """Render a list of findings with fix recommendations and all locations."""
     if console is None:
@@ -280,7 +345,7 @@ def render_findings(
             Text(icon, style=color),
             signal,
             Text(f"{f.score:.2f}", style=color),
-            _format_finding_detail(f),
+            _format_finding_detail(f, repo_root=repo_root, show_code=show_code),
         )
 
     console.print(table)
@@ -341,6 +406,8 @@ def render_full_report(
     console: Console | None = None,
     sort_by: str = "impact",
     max_findings: int = 20,
+    *,
+    show_code: bool = True,
 ) -> None:
     """Render the complete analysis report."""
     if console is None:
@@ -355,6 +422,8 @@ def render_full_report(
         max_items=max_findings,
         console=console,
         sort_by=sort_by,
+        repo_root=analysis.repo_path,
+        show_code=show_code,
     )
 
     # Interpretation guidance footer
