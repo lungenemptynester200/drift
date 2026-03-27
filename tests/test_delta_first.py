@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from drift.analyzer import analyze_diff
+from drift.analyzer import analyze_diff, analyze_repo
 from drift.config import DriftConfig
 from drift.models import RepoAnalysis, TrendContext
 from drift.scoring.engine import delta_gate_pass
@@ -211,6 +211,55 @@ class TestAnalyzeDiffHistory:
         updated_history = json.loads(history_file.read_text(encoding="utf-8"))
         diff_entries = [s for s in updated_history if s.get("scope") == "diff"]
         assert len(diff_entries) >= 2
+
+
+class TestAnalyzeRepoHistoryScope:
+    def test_analyze_repo_uses_legacy_and_repo_snapshots_for_repo_scope(self, tmp_path: Path):
+        cfg = DriftConfig(
+            include=["**/*.py"],
+            exclude=["**/.git/**", "**/.drift-cache/**"],
+            embeddings_enabled=False,
+        )
+        (tmp_path / "pkg").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "pkg" / "mod.py").write_text("def fn(x):\n    return x\n", encoding="utf-8")
+
+        history_file = tmp_path / cfg.cache_dir / "history.json"
+        history_file.parent.mkdir(parents=True, exist_ok=True)
+        history_file.write_text(json.dumps([
+            {
+                "timestamp": "2026-01-01T00:00:00+00:00",
+                "drift_score": 0.20,
+                "signal_scores": {},
+                "total_files": 1,
+                "total_findings": 1,
+            },
+            {
+                "timestamp": "2026-01-02T00:00:00+00:00",
+                "drift_score": 0.70,
+                "signal_scores": {},
+                "total_files": 1,
+                "total_findings": 1,
+                "scope": "diff",
+            },
+            {
+                "timestamp": "2026-01-03T00:00:00+00:00",
+                "drift_score": 0.30,
+                "signal_scores": {},
+                "total_files": 1,
+                "total_findings": 1,
+                "scope": "repo",
+            },
+        ]), encoding="utf-8")
+
+        analysis = analyze_repo(tmp_path, config=cfg, workers=1)
+
+        assert analysis.trend is not None
+        # Legacy snapshots without scope must stay compatible and count as repo scope.
+        assert analysis.trend.history_depth == 2
+
+        updated = json.loads(history_file.read_text(encoding="utf-8"))
+        assert updated[-1]["scope"] == "repo"
+        assert len(updated) == 4
 
 
 # ── Config ────────────────────────────────────────────────────────────────

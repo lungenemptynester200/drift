@@ -1,81 +1,72 @@
-"""Main analysis orchestrator — coordinates ingestion, signals, and scoring."""
+﻿"""Main analysis orchestrator - coordinates high-level pipeline entry points."""
 
 from __future__ import annotations
 
 import datetime
 import importlib
-import json
 import logging
 import pkgutil
 import subprocess
 import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import drift.signals
-from drift.cache import ParseCache
 from drift.config import DriftConfig
-from drift.context_tags import apply_context_tags, scan_context_tags
-from drift.embeddings import get_embedding_service
-from drift.ingestion.ast_parser import parse_file
 from drift.ingestion.file_discovery import discover_files
-from drift.ingestion.git_history import build_file_histories, parse_git_history
-from drift.models import (
-    FileInfo,
-    Finding,
-    ParseResult,
-    PatternCategory,
-    PatternInstance,
-    RepoAnalysis,
-    TrendContext,
+from drift.models import FileInfo, RepoAnalysis, TrendContext
+from drift.pipeline import (
+    DEFAULT_WORKERS,
+    AnalysisPipeline,
+    SignalPhase,
+    fetch_git_history,
+    is_git_repo,
+    make_degradation_event,
 )
-from drift.scoring.engine import (
-    assign_impact_scores,
-    auto_calibrate_weights,
-    composite_score,
-    compute_module_scores,
-    compute_signal_scores,
+from drift.signals.base import create_signals
+from drift.trend_history import (
+    NOISE_FLOOR,
 )
-from drift.signals.base import AnalysisContext, create_signals
-from drift.suppression import filter_findings, scan_suppressions
+from drift.trend_history import (
+    apply_trend_and_persist_snapshot as trend_apply_and_persist,
+)
+from drift.trend_history import (
+    build_trend_context as trend_build_context,
+)
+from drift.trend_history import (
+    load_history as trend_load_history,
+)
+from drift.trend_history import (
+    load_history_with_status as trend_load_history_with_status,
+)
+from drift.trend_history import (
+    save_history as trend_save_history,
+)
+from drift.trend_history import (
+    snapshot_scope as trend_snapshot_scope,
+)
 
 # Auto-discover all signal modules so @register_signal decorators execute.
 for _finder, _mod_name, _ispkg in pkgutil.iter_modules(drift.signals.__path__):
     importlib.import_module(f"drift.signals.{_mod_name}")
 
-# Progress callback: (phase_name, current, total)
 ProgressCallback = Callable[[str, int, int], None]
-
-# Default parallelism for file parsing — threads work well here because
-# the bottleneck is disk I/O rather than pure CPU.
-_DEFAULT_WORKERS = 8
+_DEFAULT_WORKERS = DEFAULT_WORKERS
 
 
 def _is_git_repo(path: Path) -> bool:
     """Check whether *path* is inside a git working tree."""
-    try:
-        subprocess.run(
-            ["git", "-C", str(path), "rev-parse", "--git-dir"],
-            capture_output=True,
-            check=True,
-        )
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    return is_git_repo(path)
 
 
 def _fetch_git_history(
-    repo_path: Path, since_days: int, known_files: set[str],
+    repo_path: Path,
+    since_days: int,
+    known_files: set[str],
     ai_confidence_threshold: float = 0.50,
 ) -> tuple[list, dict]:
     """Run git history parsing (designed to run in a background thread)."""
-    commits = parse_git_history(
-        repo_path, since_days=since_days, file_filter=known_files,
-        ai_confidence_threshold=ai_confidence_threshold,
-    )
-    file_histories = build_file_histories(commits, known_files=known_files)
-    return commits, file_histories
+    return fetch_git_history(repo_path, since_days, known_files, ai_confidence_threshold)
 
 
 def _make_degradation_event(
@@ -86,14 +77,12 @@ def _make_degradation_event(
     details: dict[str, str] | None = None,
 ) -> dict[str, object]:
     """Build a machine-readable degradation event payload."""
-    event: dict[str, object] = {
-        "cause": cause,
-        "component": component,
-        "message": message,
-    }
-    if details:
-        event["details"] = details
-    return event
+    return make_degradation_event(
+        cause=cause,
+        component=component,
+        message=message,
+        details=details,
+    )
 
 
 def _mark_analysis_degraded(
@@ -128,316 +117,48 @@ def _run_pipeline(
     on_progress: ProgressCallback | None = None,
     workers: int = _DEFAULT_WORKERS,
 ) -> RepoAnalysis:
-    """Shared analysis pipeline: parse → git history → signals → score.
-
-    Both ``analyze_repo`` and ``analyze_diff`` delegate here after resolving
-    which files to analyse.  Keeping the pipeline in one place eliminates
-    duplication and ensures every code-path benefits from caching, progress
-    reporting, and resilient signal execution.
-    """
-    start = time.monotonic()
-    degradation_events: list[dict[str, object]] = []
-    degradation_causes: set[str] = set()
-    degradation_components: set[str] = set()
-
-    def _record_degradation(
-        *,
-        cause: str,
-        component: str,
-        message: str,
-        details: dict[str, str] | None = None,
-    ) -> None:
-        degradation_causes.add(cause)
-        degradation_components.add(component)
-        degradation_events.append(
-            _make_degradation_event(
-                cause=cause,
-                component=component,
-                message=message,
-                details=details,
-            )
-        )
-
-    def _progress(phase: str, current: int, total: int) -> None:
-        if on_progress:
-            on_progress(phase, current, total)
-
-    known_files = {f.path.as_posix() for f in files}
-
-    # --- 1. AST parsing (parallelized, cache-aware) ---
-    cache = ParseCache(repo_path / config.cache_dir)
-
-    cached_results: dict[int, ParseResult] = {}
-    # Keep the content hash for cache misses so we don't re-read each file
-    # after parsing just to compute the key again.
-    to_parse: list[tuple[int, FileInfo, str | None]] = []
-    for idx, finfo in enumerate(files):
-        full_path = repo_path / finfo.path
-        content_hash: str | None = None
-        try:
-            content_hash = ParseCache.file_hash(full_path)
-            hit = cache.get(content_hash)
-            if hit is not None:
-                cached_results[idx] = hit
-                continue
-        except OSError:
-            pass
-        to_parse.append((idx, finfo, content_hash))
-
-    _progress("Parsing files", len(cached_results), len(files))
-
-    has_git = _is_git_repo(repo_path)
-
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        # --- 2. Git history (concurrent with parsing) ---
-        git_future = (
-            executor.submit(
-                _fetch_git_history, repo_path, since_days, known_files,
-                config.thresholds.ai_confidence_threshold,
-            )
-            if has_git
-            else None
-        )
-
-        parse_results_opt: list[ParseResult | None] = [None] * len(files)
-        for idx, cached in cached_results.items():
-            parse_results_opt[idx] = cached
-
-        if to_parse:
-            new_results: list[tuple[int, str, ParseResult]] = []
-            futures = {
-                executor.submit(parse_file, finfo.path, repo_path, finfo.language): (
-                    i,
-                    idx,
-                    content_hash,
-                )
-                for i, (idx, finfo, content_hash) in enumerate(to_parse)
-            }
-            for future in as_completed(futures):
-                i, idx, content_hash = futures[future]
-                result = future.result()
-                parse_results_opt[idx] = result
-                if content_hash is not None:
-                    new_results.append((idx, content_hash, result))
-
-            for _idx, h, r in new_results:
-                cache.put(h, r)
-
-        missing = [i for i, pr in enumerate(parse_results_opt) if pr is None]
-        if missing:
-            raise RuntimeError(
-                f"Parser pipeline produced incomplete results for {len(missing)} files. "
-                "This indicates a parsing failure before result materialization."
-            )
-        parse_results = [pr for pr in parse_results_opt if pr is not None]
-
-        _progress("Parsing files", len(files), len(files))
-
-        if git_future is not None:
-            try:
-                commits, file_histories = git_future.result()
-            except Exception as exc:
-                logging.getLogger("drift").warning(
-                    "Git history fetch failed; continuing without history.",
-                    exc_info=True,
-                )
-                commits, file_histories = [], {}
-                _record_degradation(
-                    cause="git_history_unavailable",
-                    component="git_history",
-                    message="Git history parsing failed; temporal/git-based context omitted.",
-                    details={"error": str(exc)},
-                )
-        else:
-            logging.getLogger("drift").info("Not a git repository — skipping git history analysis.")
-            commits, file_histories = [], {}
-
-    _progress("Analyzing git history", 0, 0)
-
-    # --- 3. Embedding service ---
-    emb_svc = None
-    if config.embeddings_enabled:
-        emb_svc = get_embedding_service(
-            cache_dir=repo_path / config.cache_dir,
-            model_name=config.embedding_model,
-            batch_size=config.embedding_batch_size,
-        )
-
-    # --- 4. Signals ---
-    ctx = AnalysisContext(
-        repo_path=repo_path,
-        config=config,
-        parse_results=parse_results,
-        file_histories=file_histories,
-        embedding_service=emb_svc,
-        commits=commits,
-    )
-    signals = create_signals(ctx)
-
-    all_findings: list[Finding] = []
-    total_signals = len(signals)
-    for i, signal in enumerate(signals):
-        _progress(f"Signal: {signal.name}", i + 1, total_signals)
-        try:
-            findings = signal.analyze(parse_results, file_histories, config)
-            all_findings.extend(findings)
-        except Exception:
-            logging.getLogger("drift").warning(
-                "Signal '%s' failed; skipping.",
-                signal.name,
-                exc_info=True,
-            )
-            _record_degradation(
-                cause="signal_failure",
-                component=f"signal:{signal.name}",
-                message=f"Signal '{signal.name}' failed and was skipped.",
-                details={"signal": signal.name},
-            )
-
-    # --- 5. Scoring ---
-    assign_impact_scores(all_findings, config.weights)
-
-    # --- 5b. Inline suppression ---
-    suppressions = scan_suppressions(files, repo_path)
-    all_findings, suppressed_findings = filter_findings(all_findings, suppressions)
-    suppressed_count = len(suppressed_findings)
-
-    # --- 5c. Context tagging (ADR-006) ---
-    ctx_tags = scan_context_tags(files, repo_path)
-    all_findings, context_tagged_count = apply_context_tags(
-        all_findings, ctx_tags, dampening=config.context_dampening,
-    )
-    # Re-compute impact after dampening so downstream scoring uses adjusted values
-    assign_impact_scores(all_findings, config.weights)
-
-    # --- 5d. Auto-calibration ---
-    effective_weights = config.weights
-    if config.auto_calibrate:
-        effective_weights = auto_calibrate_weights(all_findings, config.weights)
-        # Re-assign impact with calibrated weights
-        assign_impact_scores(all_findings, effective_weights)
-
-    # --- 5e. Small-repo noise suppression ---
-    n_modules = len({f.path.parent.as_posix() for f in files})
-    is_small_repo = n_modules < config.thresholds.small_repo_module_threshold
-    scoring_kwargs: dict[str, int] = {}
-    if is_small_repo:
-        scoring_kwargs["dampening_k"] = 20  # stricter dampening for small repos
-        scoring_kwargs["min_findings"] = config.thresholds.small_repo_min_findings
-
-    signal_scores = compute_signal_scores(all_findings, **scoring_kwargs)
-    repo_score = composite_score(signal_scores, effective_weights)
-    module_scores = compute_module_scores(all_findings, effective_weights)
-
-    # --- 6. Pattern catalog ---
-    pattern_catalog: dict[PatternCategory, list[PatternInstance]] = {}
-    for pr in parse_results:
-        for pattern in pr.patterns:
-            pattern_catalog.setdefault(pattern.category, []).append(pattern)
-
-    # --- 7. Assemble result ---
-    total_funcs = sum(len(pr.functions) for pr in parse_results)
-    ai_commits = sum(1 for c in commits if c.is_ai_attributed)
-    ai_ratio = ai_commits / max(1, len(commits))
-
-    duration = time.monotonic() - start
-
-    return RepoAnalysis(
-        repo_path=repo_path,
-        analyzed_at=datetime.datetime.now(tz=datetime.UTC),
-        drift_score=repo_score,
-        module_scores=module_scores,
-        findings=all_findings,
-        pattern_catalog=pattern_catalog,
-        total_files=len(files),
-        total_functions=total_funcs,
-        ai_attributed_ratio=round(ai_ratio, 3),
-        analysis_duration_seconds=round(duration, 2),
-        commits=commits,
-        file_histories=file_histories,
-        suppressed_count=suppressed_count,
-        context_tagged_count=context_tagged_count,
-        analysis_status="degraded" if degradation_events else "complete",
-        degradation_causes=sorted(degradation_causes),
-        degradation_components=sorted(degradation_components),
-        degradation_events=degradation_events,
+    """Shared analysis pipeline delegated to composable phase components."""
+    pipeline = AnalysisPipeline(signal_phase=SignalPhase(signal_factory=create_signals))
+    return pipeline.run(
+        repo_path,
+        files,
+        config,
+        since_days=since_days,
+        on_progress=on_progress,
+        workers=workers,
     )
 
 
 # ---------------------------------------------------------------------------
-# Trend context (ADR-005)
+# Trend context compatibility wrappers (ADR-005)
 # ---------------------------------------------------------------------------
 
-_NOISE_FLOOR = 0.005  # |Δ| below this → "stable" (STUDY.md §11.6)
+_NOISE_FLOOR = NOISE_FLOOR
 
 
 def _load_history(history_file: Path) -> list[dict]:
     """Load snapshots from the history JSON file."""
-    snapshots, _is_corrupt = _load_history_with_status(history_file)
-    return snapshots
+    return trend_load_history(history_file)
 
 
 def _load_history_with_status(history_file: Path) -> tuple[list[dict], bool]:
     """Load snapshots and indicate whether the history file was corrupt."""
-    if not history_file.exists():
-        return [], False
-    try:
-        data = json.loads(history_file.read_text(encoding="utf-8"))
-        if isinstance(data, list):
-            return data, False
-        return [], True
-    except Exception:
-        return [], True
+    return trend_load_history_with_status(history_file)
 
 
 def _save_history(history_file: Path, snapshots: list[dict]) -> None:
     """Persist snapshots (last 100) to the history JSON file."""
-    history_file.parent.mkdir(parents=True, exist_ok=True)
-    history_file.write_text(json.dumps(snapshots[-100:], indent=2), encoding="utf-8")
+    trend_save_history(history_file, snapshots)
 
 
-def _build_trend_context(
-    current_score: float, snapshots: list[dict],
-) -> TrendContext:
+def _build_trend_context(current_score: float, snapshots: list[dict]) -> TrendContext:
     """Compute trend context from history snapshots."""
-    if not snapshots:
-        return TrendContext(
-            previous_score=None,
-            delta=None,
-            direction="baseline",
-            recent_scores=[],
-            history_depth=0,
-            transition_ratio=0.0,
-        )
-
-    prev = snapshots[-1]["drift_score"]
-    delta = round(current_score - prev, 4)
-
-    if abs(delta) < _NOISE_FLOOR:
-        direction = "stable"
-    elif delta < 0:
-        direction = "improving"
-    else:
-        direction = "degrading"
-
-    recent = [s["drift_score"] for s in snapshots[-5:]]
-
-    return TrendContext(
-        previous_score=prev,
-        delta=delta,
-        direction=direction,
-        recent_scores=recent,
-        history_depth=len(snapshots),
-        transition_ratio=0.0,
-    )
+    return trend_build_context(current_score, snapshots)
 
 
 def _snapshot_scope(snapshot: dict) -> str:
     """Resolve snapshot scope, keeping legacy entries backward-compatible."""
-    scope = snapshot.get("scope")
-    if scope == "diff":
-        return "diff"
-    return "repo"
+    return trend_snapshot_scope(snapshot)
 
 
 def _apply_trend_and_persist_snapshot(
@@ -448,36 +169,20 @@ def _apply_trend_and_persist_snapshot(
     scope: str,
 ) -> None:
     """Attach trend context and persist a scoped history snapshot."""
-    history_file = repo_path / config.cache_dir / "history.json"
-    snapshots, history_corrupt = _load_history_with_status(history_file)
-
+    history_corrupt = trend_apply_and_persist(
+        repo_path,
+        config.cache_dir,
+        analysis,
+        scope=scope,
+    )
     if history_corrupt:
         _mark_analysis_degraded(
             analysis,
             cause="history_cache_corrupt",
             component="history_cache",
             message="History cache could not be parsed; trend baseline restarted.",
-            details={"file": history_file.as_posix()},
+            details={"file": (repo_path / config.cache_dir / "history.json").as_posix()},
         )
-
-    scoped_history = [s for s in snapshots if _snapshot_scope(s) == scope]
-    analysis.trend = _build_trend_context(analysis.drift_score, scoped_history)
-
-    if analysis.trend and analysis.findings:
-        analysis.trend.transition_ratio = round(
-            analysis.context_tagged_count / len(analysis.findings), 3,
-        )
-
-    signal_scores = compute_signal_scores(analysis.findings)
-    snapshots.append({
-        "timestamp": analysis.analyzed_at.isoformat(),
-        "drift_score": analysis.drift_score,
-        "signal_scores": {s.value: v for s, v in signal_scores.items()},
-        "total_files": analysis.total_files,
-        "total_findings": len(analysis.findings),
-        "scope": scope,
-    })
-    _save_history(history_file, snapshots)
 
 
 # ---------------------------------------------------------------------------
@@ -493,19 +198,7 @@ def analyze_repo(
     on_progress: ProgressCallback | None = None,
     workers: int = _DEFAULT_WORKERS,
 ) -> RepoAnalysis:
-    """Run full drift analysis on a repository.
-
-    Args:
-        repo_path: Absolute path to the repository root.
-        config: Drift configuration. Loaded from drift.yaml if None.
-        since_days: How many days of git history to analyze.
-        target_path: Optional subdirectory to restrict analysis to.
-        on_progress: Optional callback (phase, current, total) for progress display.
-        workers: Number of parallel parsing threads.
-
-    Returns:
-        Complete RepoAnalysis with scores, findings, and module breakdowns.
-    """
+    """Run full drift analysis on a repository."""
     repo_path = repo_path.resolve()
     start = time.monotonic()
     if config is None:
@@ -526,7 +219,9 @@ def analyze_repo(
         files = [f for f in files if str(f.path).startswith(str(target))]
 
     analysis = _run_pipeline(
-        repo_path, files, config,
+        repo_path,
+        files,
+        config,
         since_days=since_days,
         on_progress=on_progress,
         workers=workers,
@@ -551,18 +246,13 @@ def analyze_diff(
     on_progress: ProgressCallback | None = None,
     since_days: int = 90,
 ) -> RepoAnalysis:
-    """Analyze only files changed since a given git ref.
-
-    Useful for CI — only checks files in the current diff.
-    Runs signals only on changed files rather than the entire repo.
-    """
+    """Analyze only files changed since a given git ref."""
     logger = logging.getLogger("drift")
     repo_path = repo_path.resolve()
     start = time.monotonic()
     if config is None:
         config = DriftConfig.load(repo_path)
 
-    # Get changed files from git (subprocess per ADR-004)
     changed_files: list[str] = []
     try:
         result = subprocess.run(
@@ -615,7 +305,9 @@ def analyze_diff(
         )
 
     analysis = _run_pipeline(
-        repo_path, files, config,
+        repo_path,
+        files,
+        config,
         since_days=since_days,
         on_progress=on_progress,
         workers=workers,

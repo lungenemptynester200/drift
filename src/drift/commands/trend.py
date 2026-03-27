@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import click
 
 from drift.commands import console
+from drift.trend_history import load_history, snapshot_scope
 
 
 @click.command()
@@ -28,15 +28,6 @@ def trend(repo: Path, days: int, config: Path | None) -> None:
 
     cfg = DriftConfig.load(repo, config)
     history_file = repo / cfg.cache_dir / "history.json"
-    history_file.parent.mkdir(parents=True, exist_ok=True)
-
-    # Load existing snapshots
-    snapshots: list[dict] = []
-    if history_file.exists():
-        try:
-            snapshots = json.loads(history_file.read_text(encoding="utf-8"))
-        except Exception:
-            snapshots = []
 
     console.print(f"[bold]Drift — trend ({days}-day history window)[/bold]")
     console.print()
@@ -44,22 +35,8 @@ def trend(repo: Path, days: int, config: Path | None) -> None:
     with console.status("[bold blue]Analyzing current state..."):
         analysis = analyze_repo(repo, cfg, since_days=days)
 
-    # Save snapshot
-    from drift.scoring.engine import compute_signal_scores
-
-    signal_scores = compute_signal_scores(analysis.findings)
-    snapshot = {
-        "timestamp": analysis.analyzed_at.isoformat(),
-        "drift_score": analysis.drift_score,
-        "signal_scores": {s.value: v for s, v in signal_scores.items()},
-        "total_files": analysis.total_files,
-        "total_findings": len(analysis.findings),
-    }
-    snapshots.append(snapshot)
-
-    # Keep last 100 snapshots
-    snapshots = snapshots[-100:]
-    history_file.write_text(json.dumps(snapshots, indent=2), encoding="utf-8")
+    # Analyzer persistiert den aktuellen Snapshot bereits kanonisch.
+    snapshots = [s for s in load_history(history_file) if snapshot_scope(s) == "repo"]
 
     # Display trend table
     if len(snapshots) < 2:

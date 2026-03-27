@@ -1,0 +1,151 @@
+"""Targeted unit tests for decomposed analyzer pipeline phases."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from drift.cache import ParseCache
+from drift.config import DriftConfig
+from drift.models import FileInfo, Finding, ParseResult, Severity, SignalType
+from drift.pipeline import DegradationInfo, IngestionPhase, ScoringPhase, SignalPhase
+
+
+def _config() -> DriftConfig:
+    return DriftConfig(
+        include=["**/*.py"],
+        exclude=["**/.git/**", "**/.drift-cache/**", "**/__pycache__/**"],
+        embeddings_enabled=False,
+    )
+
+
+def _file_info(path: str, size: int = 10) -> FileInfo:
+    return FileInfo(path=Path(path), language="python", size_bytes=size, line_count=1)
+
+
+def _finding() -> Finding:
+    return Finding(
+        signal_type=SignalType.PATTERN_FRAGMENTATION,
+        severity=Severity.LOW,
+        score=0.2,
+        title="sample",
+        description="sample finding",
+        file_path=Path("pkg/mod.py"),
+    )
+
+
+def test_ingestion_phase_uses_cache_and_preserves_order(tmp_path: Path) -> None:
+    cfg = _config()
+    (tmp_path / "a.py").write_text("def a():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "b.py").write_text("def b():\n    return 2\n", encoding="utf-8")
+
+    files = [_file_info("a.py"), _file_info("b.py")]
+
+    cache = ParseCache(tmp_path / cfg.cache_dir)
+    cached_hash = ParseCache.file_hash(tmp_path / "a.py")
+    cache.put(cached_hash, ParseResult(file_path=Path("a.py"), language="python"))
+
+    parsed_paths: list[Path] = []
+
+    def _fake_parse(path: Path, _repo_path: Path, language: str) -> ParseResult:
+        parsed_paths.append(path)
+        return ParseResult(file_path=path, language=language)
+
+    phase = IngestionPhase(parse_file_fn=_fake_parse, is_git_repo_fn=lambda _p: False)
+    out = phase.run(
+        tmp_path,
+        files,
+        cfg,
+        since_days=30,
+        workers=1,
+        degradation=DegradationInfo(causes=set(), components=set(), events=[]),
+    )
+
+    assert parsed_paths == [Path("b.py")]
+    assert [r.file_path for r in out.parse_results] == [Path("a.py"), Path("b.py")]
+    assert out.commits == []
+    assert out.file_histories == {}
+
+
+def test_signal_phase_records_degradation_on_signal_failure(tmp_path: Path) -> None:
+    class _FailingSignal:
+        name = "failing"
+
+        def analyze(self, *_args: object, **_kwargs: object) -> list[Finding]:
+            raise RuntimeError("boom")
+
+    class _WorkingSignal:
+        name = "working"
+
+        def analyze(self, *_args: object, **_kwargs: object) -> list[Finding]:
+            return [_finding()]
+
+    cfg = _config()
+    parsed = IngestionPhase(is_git_repo_fn=lambda _p: False).run(
+        tmp_path,
+        [],
+        cfg,
+        since_days=30,
+        workers=1,
+        degradation=DegradationInfo(causes=set(), components=set(), events=[]),
+    )
+
+    degradation = DegradationInfo(causes=set(), components=set(), events=[])
+    phase = SignalPhase(
+        embedding_factory=lambda **_kwargs: None,
+        signal_factory=lambda _ctx: [_FailingSignal(), _WorkingSignal()],
+    )
+    out = phase.run(tmp_path, cfg, parsed, degradation=degradation)
+
+    assert len(out.findings) == 1
+    assert "signal_failure" in degradation.causes
+    assert "signal:failing" in degradation.components
+    assert len(degradation.events) == 1
+
+
+def test_scoring_phase_applies_small_repo_kwargs_and_post_processing() -> None:
+    cfg = _config()
+    files = [_file_info("pkg/mod.py")]
+    findings = [_finding()]
+
+    impact_calls: list[dict] = []
+    score_kwargs: list[dict[str, int]] = []
+
+    def _impact_assigner(_findings: list[Finding], weights: dict) -> None:
+        impact_calls.append(weights)
+
+    def _suppression_filter(
+        items: list[Finding],
+        _suppressions: dict,
+    ) -> tuple[list[Finding], list[Finding]]:
+        return items, [_finding()]
+
+    def _context_apply(
+        items: list[Finding],
+        _tags: dict,
+        **_kwargs: object,
+    ) -> tuple[list[Finding], int]:
+        return items, 1
+
+    def _signal_scores(_findings: list[Finding], **kwargs: int) -> dict:
+        score_kwargs.append(kwargs)
+        return {}
+
+    phase = ScoringPhase(
+        impact_assigner=_impact_assigner,
+        suppression_scanner=lambda _files, _repo: {},
+        suppression_filter=_suppression_filter,
+        context_scanner=lambda _files, _repo: {},
+        context_applicator=_context_apply,
+        calibrator=lambda _findings, weights: weights,
+        signal_score_fn=_signal_scores,
+        repo_score_fn=lambda _scores, _weights: 0.0,
+        module_score_fn=lambda _findings, _weights: [],
+    )
+
+    out = phase.run(Path("."), files, cfg, findings)
+
+    assert out.suppressed_count == 1
+    assert out.context_tagged_count == 1
+    assert len(impact_calls) == 3
+    assert score_kwargs[-1]["dampening_k"] == 20
+    assert score_kwargs[-1]["min_findings"] == cfg.thresholds.small_repo_min_findings
