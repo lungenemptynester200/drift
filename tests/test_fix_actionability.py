@@ -53,7 +53,8 @@ ACTION_VERBS = re.compile(
     r"[Rr]emove|[Aa]dd|[Ee]xtract|[Cc]onsolidate|[Ss]plit|[Mm]ove|"
     r"[Rr]efactor|[Rr]eplace|[Ii]ntroduce|[Cc]reate|[Dd]elete|"
     r"[Mm]erge|[Ii]nline|[Ww]rap|[Uu]nify|[Cc]ombine|"
-    r"[Dd]ifferentiate|[Cc]atch"
+    r"[Dd]ifferentiate|[Cc]atch|[Vv]erify|[Ii]nvestigate|[Dd]ecouple|"
+    r"[Rr]oute|[Cc]larify|[Bb]reak|[Ss]tabilize"
     r")\b",
     re.UNICODE,
 )
@@ -63,8 +64,9 @@ SPECIFICITY_PATTERNS = [
     re.compile(r"\d+"),  # Contains a number (line, count, complexity)
     re.compile(r"\b[A-Za-z_]\w*\.(py|ts|js|yaml|yml|json|md|toml|cfg)\b"),  # File reference
     re.compile(r"\b[a-z_]\w*\("),  # Function/method reference like func(
-    re.compile(r"\b(Complexity|Commits?|Authors?|Pattern|Docstring|Tests?|"
-               r"Return-Type|Import|Dependency|Service\s+Layer|Interface)\b",
+    re.compile(r"\b(Complexity|Commits?|Authors?|Autoren|Pattern|Docstring|Tests?|"
+               r"Return-Type|Import|Dependency|Abhängigkeit|Service\s+Layer|"
+               r"Service-Schicht|Interface)\b",
                re.UNICODE),  # Technical terms
     re.compile(r"[A-Z][a-z]+[A-Z]"),  # CamelCase identifier
     re.compile(r"\b\d+×\b"),  # "3×" pattern count
