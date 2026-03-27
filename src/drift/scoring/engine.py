@@ -235,8 +235,11 @@ def auto_calibrate_weights(
     if total == 0:
         return base_weights
 
+    active_keys = sorted(k for k, v in weight_dict.items() if v > 0)
+
     adjustments: dict[str, float] = {}
-    for key, w in weight_dict.items():
+    for key in active_keys:
+        w = weight_dict[key]
         if w <= 0:
             continue
         share = counts.get(key, 0) / total
@@ -254,14 +257,26 @@ def auto_calibrate_weights(
     if not adjustments:
         return base_weights
 
-    # Renormalize active weights so their sum matches original active sum
-    original_active = sum(v for v in weight_dict.values() if v > 0)
-    new_active = sum(adjustments.values())
+    # Renormalize active weights so their sum matches the original active sum.
+    # Keep key order canonical to make floating-point aggregation deterministic.
+    original_active = math.fsum(weight_dict[k] for k in active_keys)
+    new_active = math.fsum(adjustments[k] for k in active_keys)
     if new_active < 0.001:
         return base_weights
 
     scale = original_active / new_active
-    calibrated = {k: round(v * scale, 4) for k, v in adjustments.items()}
+
+    scaled = {k: adjustments[k] * scale for k in active_keys}
+    calibrated = {k: round(scaled[k], 4) for k in active_keys}
+
+    # Correct rounding residue deterministically so active sum is stable.
+    residual = round(original_active - math.fsum(calibrated[k] for k in active_keys), 4)
+    if abs(residual) >= 0.0001:
+        anchor = max(active_keys, key=lambda k: (scaled[k], k))
+        corrected = round(calibrated[anchor] + residual, 4)
+        if corrected <= 0:
+            return base_weights
+        calibrated[anchor] = corrected
 
     return base_weights.model_copy(update=calibrated)
 

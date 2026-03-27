@@ -7,6 +7,7 @@ import pytest
 from drift.config import SignalWeights
 from drift.models import Finding, Severity, SignalType
 from drift.scoring.engine import (
+    auto_calibrate_weights,
     calibrate_weights,
     composite_score,
     compute_module_scores,
@@ -216,3 +217,30 @@ def test_calibrate_weights_zero_total_after_clamp_returns_current():
     original = SignalWeights()
     calibrated = calibrate_weights(deltas, original, min_weight=0.0, max_weight=0.0)
     assert calibrated == original
+
+
+def test_auto_calibrate_weights_deterministic_across_input_order():
+    base_weights = SignalWeights()
+    findings = [
+        _finding(SignalType.PATTERN_FRAGMENTATION, 0.6),
+        _finding(SignalType.PATTERN_FRAGMENTATION, 0.7),
+        _finding(SignalType.PATTERN_FRAGMENTATION, 0.8),
+        _finding(SignalType.PATTERN_FRAGMENTATION, 0.5),
+        _finding(SignalType.ARCHITECTURE_VIOLATION, 0.4),
+        _finding(SignalType.ARCHITECTURE_VIOLATION, 0.3),
+        _finding(SignalType.MUTANT_DUPLICATE, 0.9),
+        _finding(SignalType.MUTANT_DUPLICATE, 0.2),
+        _finding(SignalType.SYSTEM_MISALIGNMENT, 0.3),
+        _finding(SignalType.BYPASS_ACCUMULATION, 0.4),
+    ]
+
+    baseline = auto_calibrate_weights(findings, base_weights)
+    reversed_run = auto_calibrate_weights(list(reversed(findings)), base_weights)
+
+    assert reversed_run.model_dump() == baseline.model_dump()
+
+    # Additional permutations must not alter calibrated weights.
+    odd_first = findings[::2] + findings[1::2]
+    even_first = findings[1::2] + findings[::2]
+    assert auto_calibrate_weights(odd_first, base_weights).model_dump() == baseline.model_dump()
+    assert auto_calibrate_weights(even_first, base_weights).model_dump() == baseline.model_dump()
