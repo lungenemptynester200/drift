@@ -143,9 +143,6 @@ def _function_signature_text(fn: FunctionInfo) -> str:
 class MutantDuplicateSignal(BaseSignal):
     """Detect near-duplicate functions that diverge in subtle ways."""
 
-    def __init__(self, repo_path: Path, **kwargs: object) -> None:
-        super().__init__(repo_path=repo_path, **kwargs)  # type: ignore[arg-type]
-
     @property
     def signal_type(self) -> SignalType:
         return SignalType.MUTANT_DUPLICATE
@@ -273,7 +270,7 @@ class MutantDuplicateSignal(BaseSignal):
             fn_key_map[fn_key] = fn
 
         # Pre-compute function embeddings if service is available
-        emb = getattr(self, "_embedding_service", None)
+        emb = self.embedding_service
         embedding_cache: dict[str, Any] = {}
         if emb is not None:
             texts = []

@@ -228,8 +228,6 @@ def _compute_hub_nodes(graph: nx.DiGraph, percentile: float = 0.90) -> set[str]:
 class ArchitectureViolationSignal(BaseSignal):
     """Detect imports that violate architectural layer boundaries."""
 
-    _embedding_service: EmbeddingService | None = None  # set by create_signals
-
     @property
     def signal_type(self) -> SignalType:
         return SignalType.ARCHITECTURE_VIOLATION
@@ -252,7 +250,7 @@ class ArchitectureViolationSignal(BaseSignal):
 
         # Pre-compute embedding prototypes once
         proto_embeddings: dict[int, Any] = {}
-        emb = getattr(self, "_embedding_service", None)
+        emb = self.embedding_service
         if emb is not None:
             for layer_id, text in _LAYER_PROTOTYPES.items():
                 vec = emb.embed_text(text)
@@ -319,7 +317,7 @@ class ArchitectureViolationSignal(BaseSignal):
         )
 
         # --- Check co-change coupling (hidden logical dependencies) ---
-        commits = getattr(self, "_commits", None) or []
+        commits = self.commits
         if commits:
             known = {pr.file_path.as_posix() for pr in parse_results}
             findings.extend(self._check_co_change(graph, commits, known))

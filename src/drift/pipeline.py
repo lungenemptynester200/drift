@@ -35,7 +35,7 @@ from drift.scoring.engine import (
     compute_module_scores,
     compute_signal_scores,
 )
-from drift.signals.base import AnalysisContext, create_signals
+from drift.signals.base import AnalysisContext, BaseSignal, create_signals
 from drift.suppression import filter_findings, scan_suppressions
 
 ProgressCallback = Callable[[str, int, int], None]
@@ -283,7 +283,7 @@ class SignalPhase:
         self,
         *,
         embedding_factory: Callable[..., Any] = get_embedding_service,
-        signal_factory: Callable[[AnalysisContext], list] = create_signals,
+        signal_factory: Callable[[AnalysisContext], list[BaseSignal]] = create_signals,
     ) -> None:
         self._embedding_factory = embedding_factory
         self._signal_factory = signal_factory

@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, cast
 
 from drift.config import DriftConfig
 from drift.models import CommitInfo, FileHistory, Finding, ParseResult, SignalType
@@ -30,6 +30,24 @@ class AnalysisContext:
     commits: list[CommitInfo] = field(default_factory=list)
 
 
+@dataclass(slots=True)
+class SignalCapabilities:
+    """Explicit runtime capabilities provided by the analyzer to each signal."""
+
+    repo_path: Path
+    embedding_service: EmbeddingService | None
+    commits: list[CommitInfo]
+
+    @classmethod
+    def from_analysis_context(cls, ctx: AnalysisContext) -> SignalCapabilities:
+        """Build a capabilities payload from the full analysis context."""
+        return cls(
+            repo_path=ctx.repo_path,
+            embedding_service=ctx.embedding_service,
+            commits=ctx.commits,
+        )
+
+
 class BaseSignal(ABC):
     """Abstract base class for all detection signals.
 
@@ -40,14 +58,39 @@ class BaseSignal(ABC):
 
     _repo_path: Path | None
     _embedding_service: EmbeddingService | None
+    _commits: list[CommitInfo]
 
     def __init__(
         self,
+        *,
         repo_path: Path | None = None,
         embedding_service: EmbeddingService | None = None,
+        commits: list[CommitInfo] | None = None,
     ) -> None:
         self._repo_path = repo_path
         self._embedding_service = embedding_service
+        self._commits = commits if commits is not None else []
+
+    def bind_context(self, capabilities: SignalCapabilities) -> None:
+        """Bind analyzer-provided runtime capabilities to this signal instance."""
+        self._repo_path = capabilities.repo_path
+        self._embedding_service = capabilities.embedding_service
+        self._commits = capabilities.commits
+
+    @property
+    def repo_path(self) -> Path | None:
+        """Repository root path if provided by the analyzer."""
+        return self._repo_path
+
+    @property
+    def embedding_service(self) -> EmbeddingService | None:
+        """Embedding service if enabled for the current analysis run."""
+        return self._embedding_service
+
+    @property
+    def commits(self) -> list[CommitInfo]:
+        """Commit history available for co-change style analysis."""
+        return self._commits
 
     @property
     @abstractmethod
@@ -81,27 +124,45 @@ def register_signal(cls: type[BaseSignal]) -> type[BaseSignal]:
     return cls
 
 
+def _instantiate_signal(
+    cls: type[BaseSignal],
+    capabilities: SignalCapabilities,
+) -> BaseSignal:
+    """Instantiate a signal class with explicit contract and legacy fallback."""
+    try:
+        return cls()
+    except TypeError:
+        legacy_ctor = cast(Callable[..., BaseSignal], cls)
+        try:
+            return legacy_ctor(
+                repo_path=capabilities.repo_path,
+                embedding_service=capabilities.embedding_service,
+            )
+        except TypeError as legacy_error:
+            raise TypeError(
+                f"Signal '{cls.__name__}' could not be instantiated. "
+                "Expected either a parameterless constructor or the legacy "
+                "constructor signature (__init__(repo_path=..., embedding_service=...))."
+            ) from legacy_error
+
+
 def create_signals(ctx: AnalysisContext) -> list[BaseSignal]:
     """Instantiate all registered signals.
 
-    Signals whose ``__init__`` accepts a ``repo_path`` keyword argument
-    receive it from the context automatically.  All signals receive
-    ``ctx.embedding_service`` via constructor.
+    Preferred contract:
+    1. Parameterless constructor on the signal class
+    2. Analyzer calls ``bind_context`` with explicit runtime capabilities
+
+    Backward compatibility:
+    Legacy signal constructors accepting ``repo_path`` and
+    ``embedding_service`` keywords are still supported.
     """
-    import inspect
+    capabilities = SignalCapabilities.from_analysis_context(ctx)
 
     signals: list[BaseSignal] = []
     for cls in _SIGNAL_REGISTRY:
-        sig = inspect.signature(cls.__init__)
-        params = set(sig.parameters.keys()) - {"self"}
-        kwargs: dict[str, object] = {}
-        if "repo_path" in params:
-            kwargs["repo_path"] = ctx.repo_path
-        if "embedding_service" in params:
-            kwargs["embedding_service"] = ctx.embedding_service
-        inst = cls(**kwargs)  # type: ignore[arg-type]
-        # Inject commits for signals that use co-change analysis
-        inst._commits = ctx.commits  # type: ignore[attr-defined]
+        inst = _instantiate_signal(cls, capabilities)
+        inst.bind_context(capabilities)
         signals.append(inst)
     return signals
 

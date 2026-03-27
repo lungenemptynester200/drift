@@ -280,11 +280,6 @@ class DocImplDriftSignal(BaseSignal):
     4. (Optional, with embeddings) Semantic claim validation.
     """
 
-    _repo_path: Path  # type: ignore[assignment]  # Always set via __init__(repo_path=...)
-
-    def __init__(self, repo_path: Path, **kwargs: object) -> None:
-        super().__init__(repo_path=repo_path, **kwargs)  # type: ignore[arg-type]
-
     @property
     def signal_type(self) -> SignalType:
         return SignalType.DOC_IMPL_DRIFT
@@ -300,6 +295,9 @@ class DocImplDriftSignal(BaseSignal):
         config: DriftConfig,
     ) -> list[Finding]:
         findings: list[Finding] = []
+        repo_path = self.repo_path
+        if repo_path is None:
+            return findings
 
         # Locate README
         readme_path = self._find_readme()
@@ -338,7 +336,7 @@ class DocImplDriftSignal(BaseSignal):
             if _is_noise_dir_reference(ref):
                 continue
 
-            candidate = self._repo_path / ref
+            candidate = repo_path / ref
             if not candidate.exists() and ref.lower() not in {
                 d.lower() for d in source_dirs
             }:
@@ -352,7 +350,7 @@ class DocImplDriftSignal(BaseSignal):
                             f"README mentions '{ref}/' but no such directory"
                             f" exists. Documentation may be outdated."
                         ),
-                        file_path=readme_path.relative_to(self._repo_path),
+                        file_path=readme_path.relative_to(repo_path),
                             fix=(
                                 f"Remove '{ref}/' from README.md or create the"
                                 f" directory."
@@ -404,6 +402,9 @@ class DocImplDriftSignal(BaseSignal):
         """Scan ADR and architecture docs for stale directory claims."""
         findings: list[Finding] = []
         adr_dirs = self._discover_adr_dirs()
+        repo_path = self.repo_path
+        if repo_path is None:
+            return findings
 
         for adr_dir in adr_dirs:
             if not adr_dir.is_dir():
@@ -417,12 +418,12 @@ class DocImplDriftSignal(BaseSignal):
                 for ref in sorted(refs):
                     if _is_noise_dir_reference(ref):
                         continue
-                    candidate = self._repo_path / ref
+                    candidate = repo_path / ref
                     if not candidate.exists() and ref.lower() not in {
                         d.lower() for d in source_dirs
                     }:
                         try:
-                            rel_path = md_file.relative_to(self._repo_path)
+                            rel_path = md_file.relative_to(repo_path)
                         except ValueError:
                             rel_path = md_file
                         findings.append(
@@ -454,21 +455,24 @@ class DocImplDriftSignal(BaseSignal):
 
     def _discover_adr_dirs(self) -> list[Path]:
         """Discover likely ADR/architecture-doc directories in the repository."""
+        repo_path = self.repo_path
+        if repo_path is None:
+            return []
         seed_dirs = [
-            self._repo_path / "docs" / "adr",
-            self._repo_path / "docs" / "adrs",
-            self._repo_path / "adr",
-            self._repo_path / "docs" / "architecture",
-            self._repo_path / "doc" / "adr",
-            self._repo_path / "doc" / "adrs",
-            self._repo_path / "doc" / "decisions",
-            self._repo_path / "architecture" / "decisions",
+            repo_path / "docs" / "adr",
+            repo_path / "docs" / "adrs",
+            repo_path / "adr",
+            repo_path / "docs" / "architecture",
+            repo_path / "doc" / "adr",
+            repo_path / "doc" / "adrs",
+            repo_path / "doc" / "decisions",
+            repo_path / "architecture" / "decisions",
         ]
         roots_to_scan = [
-            self._repo_path,
-            self._repo_path / "docs",
-            self._repo_path / "doc",
-            self._repo_path / "architecture",
+            repo_path,
+            repo_path / "docs",
+            repo_path / "doc",
+            repo_path / "architecture",
         ]
         discovered: set[Path] = set()
         for path in seed_dirs:
@@ -494,8 +498,11 @@ class DocImplDriftSignal(BaseSignal):
         return sorted(discovered)
 
     def _find_readme(self) -> Path | None:
+        repo_path = self.repo_path
+        if repo_path is None:
+            return None
         for name in ("README.md", "README.rst", "README.txt", "README"):
-            p = self._repo_path / name
+            p = repo_path / name
             if p.exists():
                 return p
         return None
