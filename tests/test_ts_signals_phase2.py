@@ -7,8 +7,9 @@ results.
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from drift.config import DriftConfig
 from drift.models import (
@@ -18,8 +19,8 @@ from drift.models import (
     PatternInstance,
     SignalType,
 )
-from drift.signals.guard_clause_deficit import GuardClauseDeficitSignal
 from drift.signals.broad_exception_monoculture import BroadExceptionMonocultureSignal
+from drift.signals.guard_clause_deficit import GuardClauseDeficitSignal
 from drift.signals.naming_contract_violation import NamingContractViolationSignal
 
 ts_available: bool
@@ -426,7 +427,10 @@ function validateInput(data: Record<string, any>, schema: object): Record<string
         findings = self._run([pr], repo_path=tmp_path)
         assert len(findings) == 1
         assert findings[0].signal_type == SignalType.NAMING_CONTRACT_VIOLATION
-        assert "validate_" in findings[0].metadata["prefix_rule"] or "validateInput" in findings[0].title
+        assert (
+            "validate_" in findings[0].metadata["prefix_rule"]
+            or "validateInput" in findings[0].title
+        )
 
     @needs_tree_sitter
     def test_ts_is_with_boolean_return_no_finding(self, tmp_path: Path):

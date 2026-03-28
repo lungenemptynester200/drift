@@ -46,11 +46,13 @@ from tests.fixtures.ground_truth import (
     GroundTruthFixture,
 )
 
-
 PreparedFixture = dict[str, Any]
 
 
-def _prepare_fixtures(fixtures: list[GroundTruthFixture], tmp_path: Path) -> dict[str, PreparedFixture]:
+def _prepare_fixtures(
+    fixtures: list[GroundTruthFixture],
+    tmp_path: Path,
+) -> dict[str, PreparedFixture]:
     """Materialize fixtures once and precompute parse/history inputs."""
     prepared: dict[str, PreparedFixture] = {}
 

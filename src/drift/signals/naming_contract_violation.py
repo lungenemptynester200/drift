@@ -30,7 +30,6 @@ from drift.signals._utils import (
     _SUPPORTED_LANGUAGES,
     _TS_LANGUAGES,
     is_test_file,
-    ts_node_text,
     ts_parse_source,
     ts_walk,
 )
@@ -194,9 +193,8 @@ def _ts_has_create_path(root: Any, src: bytes) -> bool:
 
 def _ts_has_bool_return(root: Any, src: bytes, fn_info: FunctionInfo) -> bool:
     """Return True if TS function has boolean return type or only returns booleans."""
-    if fn_info.return_type:
-        if fn_info.return_type.lower().strip() == "boolean":
-            return True
+    if fn_info.return_type and fn_info.return_type.lower().strip() == "boolean":
+        return True
 
     returns = [n for n in ts_walk(root) if n.type == "return_statement"]
     if not returns:

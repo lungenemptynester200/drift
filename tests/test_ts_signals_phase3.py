@@ -20,7 +20,6 @@ from drift.models import (
 )
 from drift.signals.exception_contract_drift import (
     ExceptionContractDriftSignal,
-    _ts_extract_exception_profile,
     _ts_extract_functions_from_source,
 )
 from drift.signals.test_polarity_deficit import (
