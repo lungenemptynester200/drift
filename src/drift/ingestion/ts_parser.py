@@ -213,6 +213,7 @@ def _extract_functions(
                 "for_statement",
                 "for_in_statement",
                 "while_statement",
+                "do_statement",
                 "catch_clause",
                 "ternary_expression",
                 "switch_case",
@@ -398,7 +399,19 @@ def _extract_patterns(
         for child in node.children:
             if child.type == "catch_clause":
                 param = _child_by_field(child, "parameter")
-                exc_type = _node_text(param, source) if param else "bare"
+                if param is None:
+                    exc_type = "bare"
+                else:
+                    # Look for an explicit type annotation on the catch clause
+                    type_ann = next(
+                        (c for c in child.children if c.type == "type_annotation"),
+                        None,
+                    )
+                    if type_ann:
+                        exc_type = _node_text(type_ann, source).lstrip(": ").strip()
+                    else:
+                        # No type annotation → untyped catch; catches everything
+                        exc_type = "bare"
 
                 body = _child_by_field(child, "body")
                 actions: list[str] = []

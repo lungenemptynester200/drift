@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from typing import Any
 
 import drift.signals.architecture_violation  # noqa: F401
 import drift.signals.broad_exception_monoculture  # noqa: F401
@@ -46,13 +47,12 @@ from tests.fixtures.ground_truth import (
 )
 
 
-def _run_all_signals_grouped(
-    fixtures: list[GroundTruthFixture],
-    tmp_path: Path,
-    exclude_signal: SignalType | None = None,
-) -> dict[str, list[Finding]]:
-    """Run all signals per fixture, returning findings grouped by fixture name."""
-    grouped: dict[str, list[Finding]] = {}
+PreparedFixture = dict[str, Any]
+
+
+def _prepare_fixtures(fixtures: list[GroundTruthFixture], tmp_path: Path) -> dict[str, PreparedFixture]:
+    """Materialize fixtures once and precompute parse/history inputs."""
+    prepared: dict[str, PreparedFixture] = {}
 
     for fixture in fixtures:
         fixture_dir = fixture.materialize(tmp_path)
@@ -68,6 +68,7 @@ def _run_all_signals_grouped(
             pr = parse_file(finfo.path, fixture_dir, finfo.language)
             parse_results.append(pr)
 
+        now = datetime.datetime.now(tz=datetime.UTC)
         file_histories: dict[str, FileHistory] = {}
         for finfo in files:
             key = finfo.path.as_posix()
@@ -103,16 +104,45 @@ def _run_all_signals_grouped(
                     else 0
                 ),
                 last_modified=(
-                    datetime.datetime.now(tz=datetime.UTC)
+                    now
                     if is_new
-                    else datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=60)
+                    else now - datetime.timedelta(days=60)
                 ),
                 first_seen=(
-                    datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=3)
+                    now - datetime.timedelta(days=3)
                     if is_new
-                    else datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=120)
+                    else now - datetime.timedelta(days=120)
                 ),
             )
+
+        prepared[fixture.name] = {
+            "fixture_dir": fixture_dir,
+            "config": config,
+            "parse_results": parse_results,
+            "file_histories": file_histories,
+        }
+
+    return prepared
+
+
+def _run_all_signals_grouped(
+    fixtures: list[GroundTruthFixture],
+    tmp_path: Path,
+    exclude_signal: SignalType | None = None,
+    prepared_fixtures: dict[str, PreparedFixture] | None = None,
+) -> dict[str, list[Finding]]:
+    """Run all signals per fixture, returning findings grouped by fixture name."""
+    grouped: dict[str, list[Finding]] = {}
+
+    if prepared_fixtures is None:
+        prepared_fixtures = _prepare_fixtures(fixtures, tmp_path)
+
+    for fixture in fixtures:
+        prepared = prepared_fixtures[fixture.name]
+        fixture_dir = prepared["fixture_dir"]
+        config = prepared["config"]
+        parse_results = prepared["parse_results"]
+        file_histories = prepared["file_histories"]
 
         ctx = AnalysisContext(
             repo_path=fixture_dir,
@@ -163,6 +193,41 @@ def _compute_fixture_f1(
     return 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
 
+def _build_signal_presence(
+    findings_by_fixture: dict[str, list[Finding]],
+) -> dict[str, set[SignalType]]:
+    """Build per-fixture signal presence set from baseline findings."""
+    presence: dict[str, set[SignalType]] = {}
+    for fixture_name, findings in findings_by_fixture.items():
+        presence[fixture_name] = {f.signal_type for f in findings}
+    return presence
+
+
+def _compute_fixture_f1_from_presence(
+    fixtures: list[GroundTruthFixture],
+    signal_presence: dict[str, set[SignalType]],
+    exclude_signal: SignalType | None = None,
+) -> float:
+    """Compute F1 using baseline presence map and optional excluded signal."""
+    tp = fp = fn = 0
+
+    for fixture in fixtures:
+        fixture_presence = signal_presence.get(fixture.name, set())
+
+        for exp in fixture.expected:
+            matched = exp.signal_type in fixture_presence and exp.signal_type != exclude_signal
+            if exp.should_detect and matched:
+                tp += 1
+            elif exp.should_detect and not matched:
+                fn += 1
+            elif not exp.should_detect and matched:
+                fp += 1
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 1.0
+    return 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+
+
 # ── Signals to ablate ────────────────────────────────────────────────────
 
 ACTIVE_SIGNALS = [
@@ -185,9 +250,16 @@ ACTIVE_SIGNALS = [
 
 def test_ablation_study(tmp_path: Path) -> None:
     """Deactivate each signal and measure delta-F1."""
+    prepared_fixtures = _prepare_fixtures(ALL_FIXTURES, tmp_path / "prepared")
+
     # Baseline: all signals active
-    baseline_grouped = _run_all_signals_grouped(ALL_FIXTURES, tmp_path)
-    baseline_f1 = _compute_fixture_f1(ALL_FIXTURES, baseline_grouped)
+    baseline_grouped = _run_all_signals_grouped(
+        ALL_FIXTURES,
+        tmp_path,
+        prepared_fixtures=prepared_fixtures,
+    )
+    signal_presence = _build_signal_presence(baseline_grouped)
+    baseline_f1 = _compute_fixture_f1_from_presence(ALL_FIXTURES, signal_presence)
 
     print(f"\n{'=' * 60}")
     print(f"Ablation Study - Baseline F1: {baseline_f1:.3f}")
@@ -196,14 +268,11 @@ def test_ablation_study(tmp_path: Path) -> None:
     deltas: dict[str, float] = {}
 
     for signal in ACTIVE_SIGNALS:
-        # Use a fresh tmp subdir per ablation run
-        ablation_dir = tmp_path / f"ablation_{signal.value}"
-        ablation_dir.mkdir()
-
-        ablated_grouped = _run_all_signals_grouped(
-            ALL_FIXTURES, ablation_dir, exclude_signal=signal
+        ablated_f1 = _compute_fixture_f1_from_presence(
+            ALL_FIXTURES,
+            signal_presence,
+            exclude_signal=signal,
         )
-        ablated_f1 = _compute_fixture_f1(ALL_FIXTURES, ablated_grouped)
         delta = baseline_f1 - ablated_f1
 
         deltas[signal.value] = delta
@@ -226,7 +295,12 @@ def test_ablation_study(tmp_path: Path) -> None:
 
 def test_scoring_sensitivity(tmp_path: Path) -> None:
     """Test how composite score changes with weight perturbations."""
-    grouped = _run_all_signals_grouped(ALL_FIXTURES, tmp_path)
+    prepared_fixtures = _prepare_fixtures(ALL_FIXTURES, tmp_path / "prepared")
+    grouped = _run_all_signals_grouped(
+        ALL_FIXTURES,
+        tmp_path,
+        prepared_fixtures=prepared_fixtures,
+    )
     all_findings = [f for fl in grouped.values() for f in fl]
     signal_scores = compute_signal_scores(all_findings)
 

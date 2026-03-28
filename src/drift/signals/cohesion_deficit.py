@@ -25,6 +25,7 @@ from drift.models import (
     SignalType,
     severity_for_score,
 )
+from drift.signals._utils import _SUPPORTED_LANGUAGES
 from drift.signals.base import BaseSignal, register_signal
 
 _CAMEL_PART_RE = re.compile(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)|\d+")
@@ -67,14 +68,28 @@ class _SemanticUnit:
     tokens: frozenset[str]
 
 
+_INDEX_NAMES: frozenset[str] = frozenset(
+    {"__init__.py", "index.ts", "index.tsx", "index.js", "index.jsx"},
+)
+
+
 def _is_test_like(path: Path) -> bool:
     p = path.as_posix().lower()
     name = path.name.lower()
     return (
         "/tests/" in p
         or p.startswith("tests/")
+        or "/__tests__/" in p
         or name.startswith("test_")
         or name.endswith("_test.py")
+        or name.endswith(".test.ts")
+        or name.endswith(".test.tsx")
+        or name.endswith(".test.js")
+        or name.endswith(".test.jsx")
+        or name.endswith(".spec.ts")
+        or name.endswith(".spec.tsx")
+        or name.endswith(".spec.js")
+        or name.endswith(".spec.jsx")
     )
 
 
@@ -167,17 +182,16 @@ class CohesionDeficitSignal(BaseSignal):
     ) -> list[Finding]:
         del file_histories  # Not required for this structural signal.
 
-        repo_python_files = [
+        repo_files = [
             pr
             for pr in parse_results
-            if pr.language == "python"
-            and pr.file_path.suffix == ".py"
-            and pr.file_path.name != "__init__.py"
+            if pr.language in _SUPPORTED_LANGUAGES
+            and pr.file_path.name not in _INDEX_NAMES
             and not _is_test_like(pr.file_path)
         ]
 
         small_repo_threshold = config.thresholds.small_repo_module_threshold
-        repo_ratio = min(1.0, len(repo_python_files) / max(1, small_repo_threshold))
+        repo_ratio = min(1.0, len(repo_files) / max(1, small_repo_threshold))
         repo_dampening = 0.7 + (0.3 * repo_ratio)
 
         min_units = 4
@@ -186,7 +200,7 @@ class CohesionDeficitSignal(BaseSignal):
 
         findings: list[Finding] = []
 
-        for pr in repo_python_files:
+        for pr in repo_files:
             units = _collect_units(pr)
             if len(units) < min_units:
                 continue

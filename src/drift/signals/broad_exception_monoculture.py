@@ -26,7 +26,10 @@ from drift.models import (
 )
 from drift.signals.base import BaseSignal, register_signal
 
-_BROAD_TYPES: frozenset[str] = frozenset({"bare", "Exception", "BaseException"})
+_BROAD_TYPES: frozenset[str] = frozenset({
+    "bare", "Exception", "BaseException",
+    "any", "unknown", "Error",
+})
 
 _SWALLOWING_ACTIONS: frozenset[str] = frozenset({"pass", "log", "print"})
 

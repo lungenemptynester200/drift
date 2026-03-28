@@ -28,29 +28,29 @@ from drift.output.json_output import analysis_to_json, findings_to_sarif
 
 
 def _minimal_analysis(**overrides) -> RepoAnalysis:
-    defaults = dict(
-        repo_path=Path("/tmp/test-repo"),
-        analyzed_at=datetime.datetime(2026, 1, 15, 12, 0, 0),
-        drift_score=0.42,
-        total_files=10,
-        total_functions=50,
-        ai_attributed_ratio=0.3,
-        analysis_duration_seconds=1.5,
-    )
+    defaults = {
+        "repo_path": Path("/tmp/test-repo"),
+        "analyzed_at": datetime.datetime(2026, 1, 15, 12, 0, 0),
+        "drift_score": 0.42,
+        "total_files": 10,
+        "total_functions": 50,
+        "ai_attributed_ratio": 0.3,
+        "analysis_duration_seconds": 1.5,
+    }
     defaults.update(overrides)
     return RepoAnalysis(**defaults)
 
 
 def _finding(**overrides) -> Finding:
-    defaults = dict(
-        signal_type=SignalType.PATTERN_FRAGMENTATION,
-        severity=Severity.MEDIUM,
-        score=0.55,
-        title="Test finding",
-        description="A test finding description",
-        file_path=Path("src/module.py"),
-        start_line=42,
-    )
+    defaults = {
+        "signal_type": SignalType.PATTERN_FRAGMENTATION,
+        "severity": Severity.MEDIUM,
+        "score": 0.55,
+        "title": "Test finding",
+        "description": "A test finding description",
+        "file_path": Path("src/module.py"),
+        "start_line": 42,
+    }
     defaults.update(overrides)
     return Finding(**defaults)
 
@@ -59,7 +59,7 @@ def _finding(**overrides) -> Finding:
 
 
 class TestJsonOutputGolden:
-    def test_top_level_keys(self):
+    def test_top_level_keys(self) -> None:
         """JSON output must contain exactly these top-level keys."""
         analysis = _minimal_analysis()
         data = json.loads(analysis_to_json(analysis))
@@ -79,18 +79,19 @@ class TestJsonOutputGolden:
         }
         assert set(data.keys()) == expected_keys
 
-    def test_summary_keys(self):
+    def test_summary_keys(self) -> None:
         analysis = _minimal_analysis()
         data = json.loads(analysis_to_json(analysis))
         expected_summary_keys = {
             "total_files",
             "total_functions",
             "ai_attributed_ratio",
+            "ai_tools_detected",
             "analysis_duration_seconds",
         }
         assert set(data["summary"].keys()) == expected_summary_keys
 
-    def test_finding_keys(self):
+    def test_finding_keys(self) -> None:
         """Each finding dict must have the expected field set."""
         f = _finding()
         analysis = _minimal_analysis(findings=[f])
@@ -114,7 +115,7 @@ class TestJsonOutputGolden:
         }
         assert set(data["findings"][0].keys()) == expected_finding_keys
 
-    def test_module_keys(self):
+    def test_module_keys(self) -> None:
         ms = ModuleScore(
             path=Path("src"),
             drift_score=0.5,
@@ -135,19 +136,19 @@ class TestJsonOutputGolden:
         }
         assert set(data["modules"][0].keys()) == expected_module_keys
 
-    def test_severity_values_are_strings(self):
+    def test_severity_values_are_strings(self) -> None:
         analysis = _minimal_analysis(findings=[_finding(severity=Severity.CRITICAL)])
         data = json.loads(analysis_to_json(analysis))
         assert data["findings"][0]["severity"] == "critical"
         assert data["severity"] in ("info", "low", "medium", "high", "critical")
 
-    def test_finding_with_no_file_path(self):
+    def test_finding_with_no_file_path(self) -> None:
         f = _finding(file_path=None, start_line=None)
         analysis = _minimal_analysis(findings=[f])
         data = json.loads(analysis_to_json(analysis))
         assert data["findings"][0]["file"] is None
 
-    def test_json_is_valid_json(self):
+    def test_json_is_valid_json(self) -> None:
         analysis = _minimal_analysis(findings=[_finding()])
         raw = analysis_to_json(analysis)
         # Must not raise
@@ -158,13 +159,13 @@ class TestJsonOutputGolden:
 
 
 class TestSarifOutputGolden:
-    def test_sarif_schema_version(self):
+    def test_sarif_schema_version(self) -> None:
         analysis = _minimal_analysis(findings=[_finding()])
         data = json.loads(findings_to_sarif(analysis))
         assert data["version"] == "2.1.0"
         assert "$schema" in data
 
-    def test_sarif_has_runs(self):
+    def test_sarif_has_runs(self) -> None:
         analysis = _minimal_analysis(findings=[_finding()])
         data = json.loads(findings_to_sarif(analysis))
         assert len(data["runs"]) == 1
@@ -173,7 +174,7 @@ class TestSarifOutputGolden:
         assert "rules" in run["tool"]["driver"]
         assert "results" in run
 
-    def test_sarif_finding_with_location(self):
+    def test_sarif_finding_with_location(self) -> None:
         f = _finding(start_line=10, end_line=20)
         analysis = _minimal_analysis(findings=[f])
         data = json.loads(findings_to_sarif(analysis))
@@ -183,7 +184,7 @@ class TestSarifOutputGolden:
         assert region["startLine"] == 10
         assert region["endLine"] == 20
 
-    def test_sarif_finding_start_line_only(self):
+    def test_sarif_finding_start_line_only(self) -> None:
         f = _finding(start_line=10, end_line=None)
         analysis = _minimal_analysis(findings=[f])
         data = json.loads(findings_to_sarif(analysis))
@@ -192,7 +193,7 @@ class TestSarifOutputGolden:
         assert region["startLine"] == 10
         assert "endLine" not in region
 
-    def test_sarif_finding_no_location(self):
+    def test_sarif_finding_no_location(self) -> None:
         """Finding without file_path → no locations in SARIF result."""
         f = _finding(file_path=None, start_line=None)
         analysis = _minimal_analysis(findings=[f])
@@ -200,7 +201,7 @@ class TestSarifOutputGolden:
         result = data["runs"][0]["results"][0]
         assert "locations" not in result
 
-    def test_sarif_related_files(self):
+    def test_sarif_related_files(self) -> None:
         f = _finding(related_files=[Path("src/a.py"), Path("src/b.py")])
         analysis = _minimal_analysis(findings=[f])
         data = json.loads(findings_to_sarif(analysis))
@@ -208,14 +209,14 @@ class TestSarifOutputGolden:
         assert "relatedLocations" in result
         assert len(result["relatedLocations"]) == 2
 
-    def test_sarif_fix_text_included(self):
+    def test_sarif_fix_text_included(self) -> None:
         f = _finding(fix="Extract shared helper")
         analysis = _minimal_analysis(findings=[f])
         data = json.loads(findings_to_sarif(analysis))
         result = data["runs"][0]["results"][0]
         assert "FIX:" in result["message"]["text"]
 
-    def test_sarif_severity_mapping(self):
+    def test_sarif_severity_mapping(self) -> None:
         """SARIF level: CRITICAL/HIGH → error, MEDIUM → warning, else → note."""
         for sev, expected_level in [
             (Severity.CRITICAL, "error"),
@@ -230,7 +231,7 @@ class TestSarifOutputGolden:
             result = data["runs"][0]["results"][0]
             assert result["level"] == expected_level, f"severity={sev} → expected {expected_level}"
 
-    def test_sarif_rule_deduplication(self):
+    def test_sarif_rule_deduplication(self) -> None:
         """Two findings with same signal+severity → one rule, two results."""
         f1 = _finding(title="A")
         f2 = _finding(title="B")
@@ -240,7 +241,7 @@ class TestSarifOutputGolden:
         assert len(run["results"]) == 2
         assert len(run["tool"]["driver"]["rules"]) == 1
 
-    def test_sarif_is_valid_json(self):
+    def test_sarif_is_valid_json(self) -> None:
         analysis = _minimal_analysis(findings=[_finding()])
         raw = findings_to_sarif(analysis)
         json.loads(raw)

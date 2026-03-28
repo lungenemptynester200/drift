@@ -1,0 +1,169 @@
+# Copilot Behavioral Benchmark — Prompt Pairs
+#
+# 7 prompts for the 7 covered signals from copilot_context_evidence.json.
+# Each prompt targets exactly the behavior that the generated instruction
+# should steer Copilot toward.
+#
+# Protocol:
+#   Round A (control):   new chat, NO drift instructions, paste prompt → save code
+#   Round B (treatment): new chat, copilot-instructions.md active, same prompt → save code
+#
+# Evaluation: binary compliance per signal (true/false).
+
+prompts:
+  - id: PFS
+    signal: pattern_fragmentation
+    instruction_heading: "Code Pattern Consistency"
+    instruction_gist: >
+      Use consistent error-handling patterns; follow existing patterns in the codebase.
+
+    prompt: >
+      This Python project has an existing error handling pattern: all service
+      functions wrap errors in AppError(message, code) and re-raise.
+      Here is the existing pattern in services/auth.py:
+
+        def authenticate(user, password):
+            try:
+                token = _verify(user, password)
+            except CredentialError as e:
+                raise AppError(str(e), code="AUTH_FAIL") from e
+            return token
+
+      Now add a function `reset_password(user, new_password)` to services/auth.py
+      that validates the new password and updates it. Handle errors consistently
+      with the existing pattern.
+
+    correct_pattern: "wraps errors in AppError with code parameter, re-raises with `from e`"
+    wrong_pattern: "raises ValueError, uses bare except, or invents a new error wrapper class"
+
+  - id: BEM
+    signal: broad_exception_monoculture
+    instruction_heading: "Exception Handling"
+    instruction_gist: >
+      Use specific exception types instead of bare `except Exception`.
+
+    prompt: >
+      Add error handling to this payment processing function. The function
+      calls an external API and writes to a database:
+
+        def process_payment(order_id, amount):
+            response = payment_gateway.charge(order_id, amount)
+            db.payments.insert(order_id=order_id, amount=amount, ref=response.ref)
+            return response.ref
+
+      Wrap it so errors are handled properly and the caller gets useful
+      error information.
+
+    correct_pattern: "catches specific exceptions (e.g. PaymentGatewayError, DatabaseError), not bare `except Exception`"
+    wrong_pattern: "uses `except Exception as e` or bare `except:` for all error paths"
+
+  - id: BAT
+    signal: bypass_accumulation
+    instruction_heading: "TODO/FIXME Hygiene"
+    instruction_gist: >
+      Do not add TODO/FIXME/HACK markers without a linked issue or timeline.
+
+    prompt: >
+      This function has a known limitation — it doesn't handle pagination
+      for large result sets. Add a note about this limitation and implement
+      a basic workaround:
+
+        def search_users(query: str) -> list[User]:
+            results = db.users.search(query)
+            return [User.from_row(r) for r in results]
+
+    correct_pattern: "implements pagination or documents limitation in docstring/comment WITHOUT bare TODO/FIXME/HACK markers"
+    wrong_pattern: "adds `# TODO: add pagination` or `# FIXME: handle large sets` without issue link"
+
+  - id: DIA
+    signal: doc_impl_drift
+    instruction_heading: "Documentation Alignment"
+    instruction_gist: >
+      Keep README and architectural documentation in sync with implementation.
+
+    prompt: >
+      Add a new `export_csv` endpoint to this Flask app. The current README
+      documents two endpoints: GET /users and POST /users.
+
+        @app.route("/users", methods=["GET"])
+        def list_users():
+            return jsonify(db.get_all_users())
+
+        @app.route("/users", methods=["POST"])
+        def create_user():
+            data = request.json
+            return jsonify(db.create_user(data)), 201
+
+      Add the new endpoint AND update the README section to include it.
+
+    correct_pattern: "adds the endpoint AND updates the README documentation to list all three endpoints"
+    wrong_pattern: "adds the endpoint but does not mention updating README or documentation"
+
+  - id: MDS
+    signal: mutant_duplicate
+    instruction_heading: "Deduplication"
+    instruction_gist: >
+      Before creating a new function, check for near-duplicates. Extract
+      common logic into shared helpers.
+
+    prompt: >
+      This file has a function that formats a user's display name:
+
+        def format_user_display(user):
+            name = f"{user.first_name} {user.last_name}".strip()
+            if user.title:
+                name = f"{user.title} {name}"
+            if user.suffix:
+                name = f"{name}, {user.suffix}"
+            return name
+
+      Now add a function `format_admin_display(admin)` that formats an
+      admin's display name. Admins have the same name fields plus a `role`
+      field that should appear in brackets after the name.
+
+    correct_pattern: "reuses format_user_display() or extracts shared helper, then adds role suffix"
+    wrong_pattern: "duplicates the name-building logic in a new function"
+
+  - id: NBV
+    signal: naming_contract_violation
+    instruction_heading: "Naming Conventions"
+    instruction_gist: >
+      Follow project naming conventions (validate_* for validation,
+      is_*/has_* for boolean returns, etc.)
+
+    prompt: >
+      This module uses the convention that validation functions are named
+      `validate_<thing>` and return the validated value or raise ValidationError.
+      Boolean checks are named `is_<condition>`:
+
+        def validate_email(email: str) -> str:
+            if "@" not in email:
+                raise ValidationError("invalid email")
+            return email.lower()
+
+        def is_active(user: User) -> bool:
+            return user.status == "active"
+
+      Add: (1) a function that checks if a username contains only allowed
+      characters, and (2) a function that validates an age field is between
+      0 and 150.
+
+    correct_pattern: "names them `is_valid_username` (or `is_*`) and `validate_age` following existing conventions"
+    wrong_pattern: "names them `check_username`, `verify_age`, `username_ok`, or other non-convention names"
+
+  - id: EDS
+    signal: explainability_deficit
+    instruction_heading: "Code Documentation"
+    instruction_gist: >
+      Complex functions (cyclomatic complexity >10) must have docstrings
+      and complete type annotations.
+
+    prompt: >
+      Implement a function `calculate_shipping_cost` that determines
+      shipping cost based on: weight, dimensions, destination zone (domestic/
+      international), shipping speed (standard/express/overnight), fragile
+      flag, insurance flag, and whether the customer has a loyalty discount.
+      There are different rate tables per zone and speed combination.
+
+    correct_pattern: "includes a docstring explaining parameters and logic, has type annotations on all parameters and return type"
+    wrong_pattern: "no docstring, or missing type annotations on parameters/return"

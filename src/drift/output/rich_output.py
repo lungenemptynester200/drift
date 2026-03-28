@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import linecache
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.panel import Panel
@@ -11,8 +11,12 @@ from rich.table import Table
 from rich.text import Text
 
 from drift.models import Finding, ModuleScore, RepoAnalysis, Severity, SignalType
-from drift.recommendations import Recommendation
-from drift.timeline import RepoTimeline
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from drift.recommendations import Recommendation
+    from drift.timeline import RepoTimeline
 
 # Colors per severity
 _SEVERITY_COLORS = {
@@ -163,6 +167,15 @@ def render_summary(analysis: RepoAnalysis, console: Console | None = None) -> No
                 ("  │  ", "dim"),
                 (f"AI: {analysis.ai_attributed_ratio:.0%}", ""),
                 *(
+                    (
+                        (" (", "dim"),
+                        (", ".join(analysis.ai_tools_detected), "dim italic"),
+                        (")", "dim"),
+                    )
+                    if analysis.ai_tools_detected
+                    else ()
+                ),
+                *(
                     (("  │  ", "dim"), (f"{analysis.suppressed_count} suppressed", "dim italic"))
                     if analysis.suppressed_count
                     else ()
@@ -185,7 +198,7 @@ def render_summary(analysis: RepoAnalysis, console: Console | None = None) -> No
             ),
             title=f"[bold]drift analyze[/bold]  {analysis.repo_path}",
             border_style=header_color,
-        )
+        ),
     )
 
     if analysis.is_degraded:
@@ -193,7 +206,7 @@ def render_summary(analysis: RepoAnalysis, console: Console | None = None) -> No
         components = ", ".join(analysis.degradation_components) or "unknown"
         console.print(
             f"  [bold yellow]Analysis degraded[/bold yellow]: causes={causes}; "
-            f"components={components}"
+            f"components={components}",
         )
 
     # Trend sparkline (ADR-005)
@@ -205,7 +218,7 @@ def render_summary(analysis: RepoAnalysis, console: Console | None = None) -> No
     elif trend and trend.direction == "baseline":
         console.print(
             "  [dim]⚠ Run drift analyze again after structural"
-            " changes to establish trend.[/dim]"
+            " changes to establish trend.[/dim]",
         )
 
 
@@ -367,7 +380,7 @@ def render_module_detail(module: ModuleScore, console: Console | None = None) ->
             _format_module_detail(module),
             title=f"[bold]{module.path.as_posix()}/[/bold]",
             border_style=color,
-        )
+        ),
     )
 
 
@@ -439,7 +452,7 @@ def render_full_report(
             "Interpret single snapshots with caution.[/dim]",
             title="[dim bold]Interpretation[/dim bold]",
             border_style="dim",
-        )
+        ),
     )
 
 
@@ -453,7 +466,6 @@ def render_timeline(
     console: Console | None = None,
 ) -> None:
     """Render the drift timeline showing *when* and *why* drift began."""
-
     if console is None:
         console = Console()
 
@@ -472,7 +484,7 @@ def render_timeline(
                 f"({span.days + 1}d): "
                 f"[bold]{burst.ai_commit_count}[/bold] AI commits "
                 f"/ {burst.commit_count} total, "
-                f"{len(burst.files_affected)} files"
+                f"{len(burst.files_affected)} files",
             )
         console.print()
 
@@ -511,7 +523,7 @@ def render_timeline(
                 f"  {evt.date}  "
                 f"[dim]{evt.commit_hash or '?'}[/dim]  "
                 f"{evt.author or '?'}{ai_tag}  "
-                f"{evt.description}"
+                f"{evt.description}",
             )
         remaining = len(mt.trigger_commits) - 5
         if remaining > 0:
@@ -529,7 +541,6 @@ def render_recommendations(
     console: Console | None = None,
 ) -> None:
     """Render actionable recommendations."""
-
     if console is None:
         console = Console()
 
@@ -542,7 +553,7 @@ def render_recommendations(
         Panel(
             f"[bold]{len(recommendations)} Recommendations[/bold]",
             border_style="cyan",
-        )
+        ),
     )
 
     impact_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}

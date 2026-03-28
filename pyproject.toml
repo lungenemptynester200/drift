@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "drift-analyzer"
-version = "0.8.2"
+version = "0.9.0"
 description = "Deterministic architectural drift detection for AI-accelerated Python repositories through cross-file coherence analysis"
 readme = "README.md"
 license = "MIT"
@@ -74,6 +74,9 @@ embeddings = [
 markdown = [
     "mistune>=3.0",
 ]
+mcp = [
+    "mcp[cli]>=1.2.0,<2.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -84,7 +87,7 @@ dev = [
     "numpy>=1.26",
 ]
 all = [
-    "drift-analyzer[typescript,embeddings,markdown,dev]",
+    "drift-analyzer[typescript,embeddings,markdown,mcp,dev]",
 ]
 
 [project.scripts]

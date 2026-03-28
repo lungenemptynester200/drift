@@ -8,16 +8,19 @@ import subprocess
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from drift.cache import ParseCache
-from drift.config import DriftConfig
 from drift.context_tags import apply_context_tags, scan_context_tags
 from drift.embeddings import get_embedding_service
 from drift.ingestion.ast_parser import parse_file
-from drift.ingestion.git_history import build_file_histories, parse_git_history
+from drift.ingestion.git_history import (
+    build_file_histories,
+    detect_ai_tool_indicators,
+    indicator_boost_for_tools,
+    parse_git_history,
+)
 from drift.models import (
     CommitInfo,
     FileHistory,
@@ -39,6 +42,11 @@ from drift.scoring.engine import (
 from drift.signals.base import AnalysisContext, BaseSignal, create_signals
 from drift.suppression import filter_findings, scan_suppressions
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from drift.config import DriftConfig
+
 ProgressCallback = Callable[[str, int, int], None]
 DEFAULT_WORKERS = 8
 
@@ -59,6 +67,7 @@ class ParsedInputs:
     parse_results: list[ParseResult]
     commits: list[CommitInfo]
     file_histories: dict[str, FileHistory]
+    ai_tools_detected: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -125,6 +134,7 @@ def fetch_git_history(
     since_days: int,
     known_files: set[str],
     ai_confidence_threshold: float = 0.50,
+    indicator_boost: float = 0.0,
 ) -> tuple[list[CommitInfo], dict[str, FileHistory]]:
     """Run git history parsing (designed to run in a background thread)."""
     commits = parse_git_history(
@@ -132,6 +142,7 @@ def fetch_git_history(
         since_days=since_days,
         file_filter=known_files,
         ai_confidence_threshold=ai_confidence_threshold,
+        indicator_boost=indicator_boost,
     )
     file_histories = build_file_histories(commits, known_files=known_files)
     return commits, file_histories
@@ -147,7 +158,7 @@ class IngestionPhase:
         parse_file_fn: Callable[[Path, Path, str], ParseResult] = parse_file,
         is_git_repo_fn: Callable[[Path], bool] = is_git_repo,
         fetch_git_history_fn: Callable[
-            [Path, int, set[str], float],
+            [Path, int, set[str], float, float],
             tuple[list[CommitInfo], dict[str, FileHistory]],
         ] = fetch_git_history,
     ) -> None:
@@ -169,6 +180,10 @@ class IngestionPhase:
     ) -> ParsedInputs:
         known_files = {f.path.as_posix() for f in files}
         cache = self._cache_factory(repo_path / config.cache_dir)
+
+        # Detect AI tool config files for indicator boost
+        ai_tools = detect_ai_tool_indicators(repo_path)
+        ai_boost = indicator_boost_for_tools(ai_tools)
 
         cached_results: dict[int, ParseResult] = {}
         to_parse: list[tuple[int, FileInfo, str | None]] = []
@@ -198,6 +213,7 @@ class IngestionPhase:
                     since_days,
                     known_files,
                     config.thresholds.ai_confidence_threshold,
+                    ai_boost,
                 )
                 if has_git
                 else None
@@ -230,9 +246,12 @@ class IngestionPhase:
 
             missing = [i for i, pr in enumerate(parse_results_opt) if pr is None]
             if missing:
-                raise RuntimeError(
+                msg = (
                     f"Parser pipeline produced incomplete results for {len(missing)} files. "
-                    "This indicates a parsing failure before result materialization.",
+                    "This indicates a parsing failure before result materialization."
+                )
+                raise RuntimeError(
+                    msg,
                 )
             parse_results = [pr for pr in parse_results_opt if pr is not None]
 
@@ -259,7 +278,7 @@ class IngestionPhase:
                                 "context omitted."
                             ),
                             details={"error": str(exc)},
-                        )
+                        ),
                     )
             else:
                 logging.getLogger("drift").info(
@@ -274,6 +293,7 @@ class IngestionPhase:
             parse_results=parse_results,
             commits=commits,
             file_histories=file_histories,
+            ai_tools_detected=ai_tools,
         )
 
 
@@ -338,7 +358,7 @@ class SignalPhase:
                         component=f"signal:{signal.name}",
                         message=f"Signal '{signal.name}' failed and was skipped.",
                         details={"signal": signal.name},
-                    )
+                    ),
                 )
 
         return SignalOutput(findings=all_findings)
@@ -406,7 +426,7 @@ class ScoringPhase:
         # Apply per-path overrides (filter + re-weight) before scoring
         if config.path_overrides:
             all_findings = apply_path_overrides(
-                all_findings, config.path_overrides, effective_weights
+                all_findings, config.path_overrides, effective_weights,
             )
 
         n_modules = len({f.path.parent.as_posix() for f in files})
@@ -439,6 +459,7 @@ class ResultAssemblyPhase:
         artifacts: PipelineArtifacts,
         *,
         started_at: float,
+        config: DriftConfig | None = None,
     ) -> RepoAnalysis:
         pattern_catalog: dict[PatternCategory, list[PatternInstance]] = {}
         for pr in artifacts.parsed.parse_results:
@@ -448,6 +469,13 @@ class ResultAssemblyPhase:
         total_funcs = sum(len(pr.functions) for pr in artifacts.parsed.parse_results)
         ai_commits = sum(1 for c in artifacts.parsed.commits if c.is_ai_attributed)
         ai_ratio = ai_commits / max(1, len(artifacts.parsed.commits))
+
+        # Manual override from drift.yaml policies.ai_attribution.manual_ratio
+        manual_ratio = None
+        if config is not None:
+            manual_ratio = config.policies.ai_attribution.get("manual_ratio")
+        if manual_ratio is not None:
+            ai_ratio = float(manual_ratio)
 
         duration = time.monotonic() - started_at
 
@@ -472,6 +500,7 @@ class ResultAssemblyPhase:
             degradation_causes=sorted(artifacts.degradation.causes),
             degradation_components=sorted(artifacts.degradation.components),
             degradation_events=artifacts.degradation.events,
+            ai_tools_detected=artifacts.parsed.ai_tools_detected,
         )
 
 
@@ -532,4 +561,5 @@ class AnalysisPipeline:
                 degradation=degradation,
             ),
             started_at=started_at,
+            config=config,
         )

@@ -28,6 +28,13 @@ from drift.models import (
     Severity,
     SignalType,
 )
+from drift.signals._utils import (
+    _SUPPORTED_LANGUAGES,
+    _TS_LANGUAGES,
+    ts_node_text,
+    ts_parse_source,
+    ts_walk,
+)
 from drift.signals.base import BaseSignal, register_signal
 
 logger = logging.getLogger("drift")
@@ -82,7 +89,7 @@ def _extract_exception_profile(func_node: ast.FunctionDef | ast.AsyncFunctionDef
 
 
 def _extract_functions_from_source(source: str) -> dict[str, dict]:
-    """Parse source and return {func_name: {param_count, profile}} for public functions."""
+    """Parse Python source and return {func_name: {param_count, profile}} for public functions."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -101,6 +108,123 @@ def _extract_functions_from_source(source: str) -> dict[str, dict]:
             "param_count": param_count,
             "profile": profile,
         }
+    return functions
+
+
+# ---------------------------------------------------------------------------
+# Tree-sitter helpers — TS/JS exception profile extraction
+# ---------------------------------------------------------------------------
+
+
+def _ts_extract_exception_profile(func_node: object, src: bytes) -> dict:
+    """Extract exception profile from a tree-sitter function node."""
+    raise_types: set[str] = set()
+    handler_types: set[str] = set()
+    has_bare_except = False
+    has_bare_raise = False
+
+    for node in ts_walk(func_node):
+        if node.type == "throw_statement":
+            # throw; (bare) vs throw new ErrorType(...)
+            children = [c for c in node.children if c.type not in ("throw", ";")]
+            if not children:
+                has_bare_raise = True
+            else:
+                expr = children[0]
+                if expr.type == "new_expression":
+                    constructor = expr.child_by_field_name("constructor")
+                    if constructor:
+                        raise_types.add(ts_node_text(constructor, src))
+                elif expr.type == "identifier":
+                    raise_types.add(ts_node_text(expr, src))
+
+        if node.type == "catch_clause":
+            param = node.child_by_field_name("parameter")
+            if param is None:
+                has_bare_except = True
+            else:
+                type_ann = next(
+                    (c for c in node.children if c.type == "type_annotation"),
+                    None,
+                )
+                if type_ann:
+                    handler_types.add(
+                        ts_node_text(type_ann, src).lstrip(": ").strip()
+                    )
+                else:
+                    has_bare_except = True  # untyped → catches everything
+
+    return {
+        "raise_types": sorted(raise_types),
+        "handler_types": sorted(handler_types),
+        "has_bare_except": has_bare_except,
+        "has_bare_raise": has_bare_raise,
+    }
+
+
+def _ts_extract_functions_from_source(
+    source: str, language: str,
+) -> dict[str, dict]:
+    """Parse TS/JS source via tree-sitter and return {func_name: {param_count, profile}}."""
+    result = ts_parse_source(source, language)
+    if result is None:
+        return {}
+
+    root, src = result
+    functions: dict[str, dict] = {}
+
+    for node in ts_walk(root):
+        name: str | None = None
+        func_node = None
+
+        if node.type == "function_declaration":
+            name_nd = node.child_by_field_name("name")
+            name = ts_node_text(name_nd, src) if name_nd else None
+            func_node = node
+
+        elif node.type == "method_definition":
+            name_nd = node.child_by_field_name("name")
+            name = ts_node_text(name_nd, src) if name_nd else None
+            func_node = node
+
+        elif node.type in ("lexical_declaration", "variable_declaration"):
+            for decl in node.children:
+                if decl.type != "variable_declarator":
+                    continue
+                name_nd = decl.child_by_field_name("name")
+                value_nd = decl.child_by_field_name("value")
+                if (
+                    name_nd
+                    and value_nd
+                    and value_nd.type == "arrow_function"
+                ):
+                    name = ts_node_text(name_nd, src)
+                    func_node = value_nd
+                    break
+
+        if name is None or func_node is None:
+            continue
+        if name.startswith("_"):
+            continue
+
+        # Count parameters
+        params_node = func_node.child_by_field_name("parameters")
+        param_count = 0
+        if params_node:
+            param_count = sum(
+                1 for c in params_node.children
+                if c.type in (
+                    "required_parameter", "optional_parameter",
+                    "rest_parameter", "identifier",
+                )
+            )
+
+        profile = _ts_extract_exception_profile(func_node, src)
+        functions[name] = {
+            "param_count": param_count,
+            "profile": profile,
+        }
+
     return functions
 
 
@@ -166,10 +290,10 @@ class ExceptionContractDriftSignal(BaseSignal):
         if repo_path is None:
             return findings
 
-        # Only analyse Python files that have git history
+        # Only analyse files with supported languages that have git history
         candidates: list[ParseResult] = []
         for pr in parse_results:
-            if pr.language != "python":
+            if pr.language not in _SUPPORTED_LANGUAGES:
                 continue
             posix = pr.file_path.as_posix()
             hist = file_histories.get(posix)
@@ -210,8 +334,16 @@ class ExceptionContractDriftSignal(BaseSignal):
             if old_source is None:
                 continue
 
-            current_funcs = _extract_functions_from_source(current_source)
-            old_funcs = _extract_functions_from_source(old_source)
+            if pr.language in _TS_LANGUAGES:
+                current_funcs = _ts_extract_functions_from_source(
+                    current_source, pr.language,
+                )
+                old_funcs = _ts_extract_functions_from_source(
+                    old_source, pr.language,
+                )
+            else:
+                current_funcs = _extract_functions_from_source(current_source)
+                old_funcs = _extract_functions_from_source(old_source)
 
             if not current_funcs or not old_funcs:
                 continue
@@ -242,7 +374,16 @@ class ExceptionContractDriftSignal(BaseSignal):
                 if PurePosixPath(pr_item.file_path.parent).as_posix() == module_key:
                     try:
                         src = (repo_path / pr_item.file_path).read_text(encoding="utf-8")
-                        all_checked.update(_extract_functions_from_source(src).keys())
+                        if pr_item.language in _TS_LANGUAGES:
+                            all_checked.update(
+                                _ts_extract_functions_from_source(
+                                    src, pr_item.language,
+                                ).keys()
+                            )
+                        else:
+                            all_checked.update(
+                                _extract_functions_from_source(src).keys()
+                            )
                     except (OSError, UnicodeDecodeError):
                         pass
 

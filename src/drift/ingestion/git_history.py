@@ -76,21 +76,94 @@ _AI_MSG_TIER2 = [
 ]
 
 DEFECT_MARKERS = re.compile(
-    r"\b(fix|bug|hotfix|revert|patch|regression|broken|crash|error)\b", re.IGNORECASE
+    r"\b(fix|bug|hotfix|revert|patch|regression|broken|crash|error)\b", re.IGNORECASE,
 )
 
+# Conventional-commit format used by many AI-assisted projects.
+_CONVENTIONAL_COMMIT_RE = re.compile(
+    r"^(feat|fix|chore|refactor|test|docs|style|build|ci|perf|revert)"
+    r"(\(.+?\))?: .+",
+    re.IGNORECASE,
+)
 
-def _detect_ai_attribution(message: str, coauthors: list[str]) -> tuple[bool, float]:
+# ---------------------------------------------------------------------------
+# AI Tool File Indicators
+# ---------------------------------------------------------------------------
+
+# Mapping: file/dir path (relative to repo root) → tool name.
+# Directories are suffixed with "/".
+_AI_TOOL_FILE_INDICATORS: dict[str, str] = {
+    ".claude/": "claude",
+    "CLAUDE.md": "claude",
+    ".claudeignore": "claude",
+    ".copilotignore": "copilot",
+    ".github/copilot-instructions.md": "copilot",
+    ".cursor/": "cursor",
+    ".cursorignore": "cursor",
+    ".cursorrules": "cursor",
+    ".aider/": "aider",
+    ".aider.conf.yml": "aider",
+    ".cline/": "cline",
+    "cline_docs/": "cline",
+    ".windsurf/": "windsurf",
+    ".codeium/": "codeium",
+    ".amazon-q/": "amazon-q",
+    ".continue/": "continue",
+}
+
+
+def detect_ai_tool_indicators(repo_path: Path) -> list[str]:
+    """Scan the repository root for known AI tool configuration files.
+
+    Returns a sorted deduplicated list of detected tool names
+    (e.g. ``["claude", "copilot"]``).
+    """
+    detected: set[str] = set()
+    for indicator, tool in _AI_TOOL_FILE_INDICATORS.items():
+        target = repo_path / indicator.rstrip("/")
+        if target.exists():
+            detected.add(tool)
+    return sorted(detected)
+
+
+def indicator_boost_for_tools(tools: list[str]) -> float:
+    """Map the number of detected AI tools to a confidence boost value.
+
+    - 0 tools → 0.0  (no boost)
+    - 1 tool  → 0.10
+    - 2 tools → 0.15
+    - 3+ tools → 0.20
+    """
+    n = len(tools)
+    if n == 0:
+        return 0.0
+    if n == 1:
+        return 0.10
+    if n == 2:
+        return 0.15
+    return 0.20
+
+
+def _detect_ai_attribution(
+    message: str,
+    coauthors: list[str],
+    *,
+    indicator_boost: float = 0.0,
+) -> tuple[bool, float]:
     """Determine if a commit is likely AI-attributed.
 
     Returns (is_ai, confidence) where confidence is 0.0-1.0.
 
     Uses tiered heuristics:
     - Co-author tag from known AI tool → 0.95 confidence
-    - Tier 1 formulaic message (specific AI patterns) → 0.40 confidence
-    - Tier 2 formulaic message (generic verb-noun) → 0.15 confidence
-      (below the default threshold, so treated as human unless
-       combined with other evidence in the caller)
+    - Tier 1 formulaic message (specific AI patterns) → 0.40 + boost
+    - Conventional commit in AI-tool repo → 0.20 + boost
+    - Tier 2 formulaic message (generic verb-noun) → 0.15 + boost
+
+    ``indicator_boost`` is added to the base confidence of message-based
+    tiers (capped at 0.95).  It is derived from the number of AI tool
+    configuration files found in the repository
+    (see :func:`indicator_boost_for_tools`).
     """
     # Strong signal: co-author tag from known AI tool (name match)
     for coauthor in coauthors:
@@ -103,18 +176,27 @@ def _detect_ai_attribution(message: str, coauthors: list[str]) -> tuple[bool, fl
             if email_marker in lower:
                 return True, 0.95
 
-    msg_first_line = message.split("\n")[0].strip()
+    msg_first_line = message.split("\n", maxsplit=1)[0].strip()
     msg_body = message.split("\n", 1)[1].strip() if "\n" in message else ""
 
     # Tier 1: specific AI patterns — higher confidence
     tier1_match = any(p.match(msg_first_line) for p in _AI_MSG_TIER1)
     if tier1_match and len(msg_first_line) < 72 and not msg_body:
-        return True, 0.40
+        conf = min(0.40 + indicator_boost, 0.95)
+        return True, round(conf, 2)
+
+    # Tier 1.5: conventional-commit format — meaningful only with tool indicators
+    if indicator_boost > 0:
+        conv_match = _CONVENTIONAL_COMMIT_RE.match(msg_first_line)
+        if conv_match and not msg_body:
+            conf = min(0.40 + indicator_boost, 0.95)
+            return True, round(conf, 2)
 
     # Tier 2: generic verb-noun patterns — only weak signal
     tier2_match = any(p.match(msg_first_line) for p in _AI_MSG_TIER2)
     if tier2_match and len(msg_first_line) < 50 and not msg_body:
-        return False, 0.15
+        conf = min(0.15 + indicator_boost, 0.95)
+        return False, round(conf, 2)
 
     return False, 0.0
 
@@ -143,6 +225,7 @@ def parse_git_history(
     file_filter: set[str] | None = None,
     *,
     ai_confidence_threshold: float = 0.50,
+    indicator_boost: float = 0.0,
 ) -> list[CommitInfo]:
     """Parse git history and return enriched commit information.
 
@@ -243,7 +326,9 @@ def parse_git_history(
 
         coauthors_raw = CO_AUTHOR_RE.findall(message)
         coauthors = [name for name, _email in coauthors_raw]
-        _is_ai_raw, ai_conf = _detect_ai_attribution(message, coauthors)
+        _is_ai_raw, ai_conf = _detect_ai_attribution(
+            message, coauthors, indicator_boost=indicator_boost,
+        )
         is_ai = ai_conf >= ai_confidence_threshold
 
         commits.append(
@@ -259,7 +344,7 @@ def parse_git_history(
                 is_ai_attributed=is_ai,
                 ai_confidence=ai_conf,
                 coauthors=coauthors,
-            )
+            ),
         )
 
     return commits
@@ -373,7 +458,7 @@ def build_co_change_pairs(
                 total_commits_a=total_a,
                 total_commits_b=total_b,
                 confidence=round(confidence, 3),
-            )
+            ),
         )
 
     pairs.sort(key=lambda p: p.confidence, reverse=True)

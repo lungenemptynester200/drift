@@ -162,10 +162,10 @@ class TestEdgeCases:
         )
         assert findings == []
 
-    def test_non_python_ignored(self, tmp_path: Path):
+    def test_unsupported_language_ignored(self, tmp_path: Path):
         pr = ParseResult(
-            file_path=Path("src/main.ts"),
-            language="typescript",
+            file_path=Path("src/main.rs"),
+            language="rust",
             functions=[],
             classes=[],
             imports=[],
@@ -219,3 +219,77 @@ class TestEdgeCases:
         findings = _run([_make_pr(p)], repo_path=tmp_path)
         assert len(findings) == 1
         assert findings[0].signal_type == SignalType.BYPASS_ACCUMULATION
+
+
+# ===================================================================
+# TypeScript / JavaScript support
+# ===================================================================
+
+
+def _make_ts_pr(file_path: Path) -> ParseResult:
+    """Minimal ParseResult for a TypeScript file."""
+    return ParseResult(
+        file_path=file_path,
+        language="typescript",
+        functions=[],
+        classes=[],
+        imports=[],
+    )
+
+
+class TestTypeScriptBypass:
+    def test_ts_ignore_detected(self, tmp_path: Path):
+        code = _lines(50) + "\nconst x = foo(); // @ts-ignore\n" + _lines(10)
+        p = _write_file(tmp_path, "src/module.ts", code)
+        findings = _run(
+            [_make_ts_pr(p)], repo_path=tmp_path, bat_density_threshold=0.01,
+        )
+        assert len(findings) == 1
+        assert findings[0].metadata["markers_by_category"]["type_safety"] >= 1
+
+    def test_ts_expect_error_detected(self, tmp_path: Path):
+        code = _lines(50) + "\n// @ts-expect-error deliberate\nconst x = 1;\n" + _lines(10)
+        p = _write_file(tmp_path, "src/module.ts", code)
+        findings = _run(
+            [_make_ts_pr(p)], repo_path=tmp_path, bat_density_threshold=0.01,
+        )
+        assert len(findings) == 1
+        assert findings[0].metadata["markers_by_category"]["type_safety"] >= 1
+
+    def test_eslint_disable_detected(self, tmp_path: Path):
+        code = _lines(50) + "\n// eslint-disable-next-line no-any\nconst x = 1;\n" + _lines(10)
+        p = _write_file(tmp_path, "src/module.ts", code)
+        findings = _run(
+            [_make_ts_pr(p)], repo_path=tmp_path, bat_density_threshold=0.01,
+        )
+        assert len(findings) == 1
+        assert findings[0].metadata["markers_by_category"]["lint"] >= 1
+
+    def test_as_any_detected(self, tmp_path: Path):
+        code = _lines(50) + "\nconst x = foo() as any;\n" + _lines(10)
+        p = _write_file(tmp_path, "src/module.ts", code)
+        findings = _run(
+            [_make_ts_pr(p)], repo_path=tmp_path, bat_density_threshold=0.01,
+        )
+        assert len(findings) == 1
+        assert findings[0].metadata["markers_by_category"]["type_safety"] >= 1
+
+    def test_ts_test_file_ignored(self, tmp_path: Path):
+        code = "// @ts-ignore\n" * 60
+        p = _write_file(tmp_path, "src/module.spec.ts", code)
+        pr = ParseResult(
+            file_path=p, language="typescript", functions=[], classes=[], imports=[],
+        )
+        findings = _run(
+            [pr], repo_path=tmp_path, bat_min_loc=5, bat_density_threshold=0.01,
+        )
+        assert findings == []
+
+    def test_ts_nocheck_detected(self, tmp_path: Path):
+        code = "// @ts-nocheck\n" + _lines(59)
+        p = _write_file(tmp_path, "src/module.ts", code)
+        findings = _run(
+            [_make_ts_pr(p)], repo_path=tmp_path, bat_density_threshold=0.01,
+        )
+        assert len(findings) == 1
+        assert findings[0].metadata["markers_by_category"]["type_safety"] >= 1

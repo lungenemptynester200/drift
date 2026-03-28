@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from drift.config import DriftConfig
 from drift.models import (
@@ -22,6 +23,14 @@ from drift.models import (
     ParseResult,
     Severity,
     SignalType,
+)
+from drift.signals._utils import (
+    _SUPPORTED_LANGUAGES,
+    _TS_LANGUAGES,
+    is_test_file,
+    ts_node_text,
+    ts_parse_source,
+    ts_walk,
 )
 from drift.signals.base import BaseSignal, register_signal
 
@@ -37,12 +46,6 @@ _VALIDATION_DECORATORS: frozenset[str] = frozenset({
     "beartype",
     "enforce_types",
 })
-
-
-def _is_test_file(file_path: Path) -> bool:
-    """Return True if *file_path* looks like a test file (by filename only)."""
-    name = file_path.name.lower()
-    return name.startswith("test_") or name.endswith("_test.py")
 
 
 def _has_guard(stmt: ast.stmt, param_names: set[str]) -> bool:
@@ -102,6 +105,78 @@ def _function_is_guarded(source: str, func_info: FunctionInfo, param_names: set[
     return True  # no function found — benefit of doubt
 
 
+# ── TypeScript guard detection (tree-sitter) ─────────────────────
+
+
+def _ts_references_param(node: Any, param_names: set[str], src: bytes) -> bool:
+    """Return True if tree-sitter *node* references at least one parameter."""
+    return any(
+        child.type == "identifier" and ts_node_text(child, src) in param_names
+        for child in ts_walk(node)
+    )
+
+
+def _ts_is_guard_stmt(stmt: Any, param_names: set[str], src: bytes) -> bool:
+    """Return True if *stmt* is a single-branch guard referencing a parameter."""
+    if stmt.type != "if_statement":
+        return False
+    # Must be single-branch (no else)
+    if any(c.type == "else_clause" for c in stmt.children):
+        return False
+    # Consequence must contain throw or return
+    consequence = stmt.child_by_field_name("consequence")
+    if not consequence:
+        return False
+    if not any(
+        c.type in ("throw_statement", "return_statement") for c in ts_walk(consequence)
+    ):
+        return False
+    # Condition must reference a parameter
+    condition = stmt.child_by_field_name("condition")
+    if not condition:
+        return False
+    return _ts_references_param(condition, param_names, src)
+
+
+def _ts_find_body_stmts(root: Any) -> list[Any]:
+    """Return the top-level statements from the first function body."""
+    for node in ts_walk(root):
+        if node.type in (
+            "function_declaration",
+            "method_definition",
+            "arrow_function",
+        ):
+            body = node.child_by_field_name("body")
+            if body and body.type == "statement_block":
+                return [c for c in body.children if c.type not in ("{", "}")]
+    return []
+
+
+def _ts_function_is_guarded(
+    source: str, func_info: FunctionInfo, param_names: set[str], language: str,
+) -> bool:
+    """Parse TS function body via tree-sitter and check for guard clauses."""
+    for dec in func_info.decorators:
+        dec_lower = dec.lower()
+        if any(vd in dec_lower for vd in _VALIDATION_DECORATORS):
+            return True
+
+    result = ts_parse_source(source, language)
+    if result is None:
+        return True  # benefit of doubt (tree-sitter unavailable)
+
+    root, src = result
+    body_stmts = _ts_find_body_stmts(root)
+    if not body_stmts:
+        return True
+
+    check_count = max(1, len(body_stmts) * 50 // 100)
+    return any(
+        _ts_is_guard_stmt(stmt, param_names, src)
+        for stmt in body_stmts[:check_count]
+    )
+
+
 @register_signal
 class GuardClauseDeficitSignal(BaseSignal):
     """Detect modules with uniformly unguarded public functions."""
@@ -126,11 +201,13 @@ class GuardClauseDeficitSignal(BaseSignal):
         module_funcs: dict[str, list[tuple[FunctionInfo, ParseResult]]] = {}
 
         for pr in parse_results:
-            if pr.language != "python":
+            if pr.language not in _SUPPORTED_LANGUAGES:
                 continue
-            if _is_test_file(pr.file_path):
+            if is_test_file(pr.file_path):
                 continue
-            if pr.file_path.name == "__init__.py":
+            if pr.file_path.name in (
+                "__init__.py", "index.ts", "index.tsx", "index.js", "index.jsx",
+            ):
                 continue
 
             for fn in pr.functions:
@@ -161,7 +238,14 @@ class GuardClauseDeficitSignal(BaseSignal):
                     guarded += 1  # benefit of doubt
                     continue
 
-                if _function_is_guarded(source, fn, param_names):
+                if pr.language in _TS_LANGUAGES:
+                    is_guarded = _ts_function_is_guarded(
+                        source, fn, param_names, pr.language,
+                    )
+                else:
+                    is_guarded = _function_is_guarded(source, fn, param_names)
+
+                if is_guarded:
                     guarded += 1
                 else:
                     total_complexity += fn.complexity

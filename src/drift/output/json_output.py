@@ -71,6 +71,7 @@ def analysis_to_json(analysis: RepoAnalysis, indent: int = 2) -> str:
             "total_files": analysis.total_files,
             "total_functions": analysis.total_functions,
             "ai_attributed_ratio": analysis.ai_attributed_ratio,
+            "ai_tools_detected": analysis.ai_tools_detected,
             "analysis_duration_seconds": analysis.analysis_duration_seconds,
         },
         "modules": [_module_to_dict(m) for m in analysis.module_scores],
@@ -103,7 +104,7 @@ def findings_to_sarif(analysis: RepoAnalysis) -> str:
                         if f.severity == Severity.MEDIUM
                         else "note",
                     },
-                }
+                },
             )
 
         result: dict[str, Any] = {
@@ -120,7 +121,7 @@ def findings_to_sarif(analysis: RepoAnalysis) -> str:
             location: dict[str, Any] = {
                 "physicalLocation": {
                     "artifactLocation": {"uri": f.file_path.as_posix()},
-                }
+                },
             }
             if f.start_line:
                 location["physicalLocation"]["region"] = {
@@ -160,7 +161,7 @@ def findings_to_sarif(analysis: RepoAnalysis) -> str:
                 "name": "drift",
                 "version": __version__,
                 "rules": rules,
-            }
+            },
         },
         "results": results,
         "properties": {
@@ -171,7 +172,7 @@ def findings_to_sarif(analysis: RepoAnalysis) -> str:
                 "causes": analysis.degradation_causes,
                 "affectedComponents": analysis.degradation_components,
                 "events": analysis.degradation_events,
-            }
+            },
         },
     }
 

@@ -22,6 +22,14 @@ from drift.models import (
     Severity,
     SignalType,
 )
+from drift.signals._utils import (
+    _SUPPORTED_LANGUAGES,
+    _TS_LANGUAGES,
+    is_test_file,
+    ts_node_text,
+    ts_parse_source,
+    ts_walk,
+)
 from drift.signals.base import BaseSignal, register_signal
 
 _NEGATIVE_METHODS: frozenset[str] = frozenset({
@@ -64,17 +72,6 @@ _BOUNDARY_KEYWORDS: frozenset[str] = frozenset({
     "null", "none", "negative", "invalid", "error",
     "fail", "overflow", "underflow", "corrupt",
 })
-
-
-def _is_test_file(file_path: Path) -> bool:
-    """Return True if *file_path* looks like a test file (by filename only)."""
-    name = file_path.name.lower()
-    return (
-        name.startswith("test_")
-        or name.endswith("_test.py")
-        or name.endswith(".spec.ts")
-        or name.endswith(".spec.tsx")
-    )
 
 
 class _AssertionCounter(ast.NodeVisitor):
@@ -134,6 +131,121 @@ def _call_name(node: ast.Call) -> str:
     return ""
 
 
+# ---------------------------------------------------------------------------
+# Tree-sitter assertion counter for Jest / Vitest / Testing-Library
+# ---------------------------------------------------------------------------
+
+# Jest/Vitest negative matchers — these indicate "negative" testing
+_TS_NEGATIVE_MATCHERS: frozenset[str] = frozenset({
+    "toThrow", "toThrowError", "toThrowErrorMatchingSnapshot",
+    "toThrowErrorMatchingInlineSnapshot",
+    "rejects",  # expect(fn).rejects.toThrow()
+    "toBeFalsy", "toBeNull", "toBeUndefined", "toBeNaN",
+    "toBeFalse",  # jest-extended
+})
+
+# Jest/Vitest positive matchers
+_TS_POSITIVE_MATCHERS: frozenset[str] = frozenset({
+    "toBe", "toEqual", "toStrictEqual", "toContain", "toContainEqual",
+    "toHaveLength", "toHaveProperty", "toMatch", "toMatchObject",
+    "toMatchSnapshot", "toMatchInlineSnapshot",
+    "toBeTruthy", "toBeDefined", "toBeInstanceOf",
+    "toBeGreaterThan", "toBeGreaterThanOrEqual",
+    "toBeLessThan", "toBeLessThanOrEqual",
+    "toBeCloseTo", "toHaveBeenCalled", "toHaveBeenCalledWith",
+    "toHaveBeenCalledTimes", "toHaveReturned", "toHaveReturnedWith",
+    "toBeTrue",  # jest-extended
+})
+
+
+def _ts_count_assertions(
+    source: str, language: str,
+) -> tuple[int, int, int, int] | None:
+    """Count positive/negative assertions in a TS/JS test file.
+
+    Returns ``(positive, negative, test_functions, boundary_functions)``
+    or *None* if tree-sitter is unavailable.
+    """
+    result = ts_parse_source(source, language)
+    if result is None:
+        return None
+
+    root, src = result
+    positive = 0
+    negative = 0
+    test_functions = 0
+    boundary_functions = 0
+
+    for node in ts_walk(root):
+        # Count test functions: it('...'), test('...'), function test_*
+        if node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            if fn:
+                fn_text = ts_node_text(fn, src)
+                if fn_text in ("it", "test", "describe"):
+                    if fn_text in ("it", "test"):
+                        test_functions += 1
+                        # Check for boundary keywords in first argument
+                        args = node.child_by_field_name("arguments")
+                        if args and args.children:
+                            first_arg = next(
+                                (c for c in args.children if c.type == "string"),
+                                None,
+                            )
+                            if first_arg:
+                                desc = ts_node_text(first_arg, src).lower()
+                                if any(kw in desc for kw in _BOUNDARY_KEYWORDS):
+                                    boundary_functions += 1
+
+            # Check for expect().matcher() chains
+            # The pattern is: call_expression -> member_expression -> call_expression (expect)
+            # We look for the final matcher name
+            if fn and fn.type == "member_expression":
+                prop = fn.child_by_field_name("property")
+                obj = fn.child_by_field_name("object")
+                if prop:
+                    matcher = ts_node_text(prop, src)
+
+                    # Detect .not. chain: expect(x).not.toBe(y)
+                    # In this case obj is another member_expression with property "not"
+                    is_negated = False
+                    if obj and obj.type == "member_expression":
+                        not_prop = obj.child_by_field_name("property")
+                        if not_prop and ts_node_text(not_prop, src) == "not":
+                            is_negated = True
+
+                    if matcher in _TS_NEGATIVE_MATCHERS:
+                        negative += 1
+                    elif matcher in _TS_POSITIVE_MATCHERS:
+                        if is_negated:
+                            negative += 1
+                        else:
+                            positive += 1
+                    elif matcher == "not":
+                        negative += 1
+
+        # expect.assertions(N) — count as positive
+        # assert.throws / assert.rejects — count as negative
+        if node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            if fn and fn.type == "member_expression":
+                obj = fn.child_by_field_name("object")
+                prop = fn.child_by_field_name("property")
+                if obj and prop:
+                    obj_text = ts_node_text(obj, src)
+                    prop_text = ts_node_text(prop, src)
+                    if obj_text == "assert":
+                        if prop_text in ("throws", "rejects", "fail"):
+                            negative += 1
+                        elif prop_text in (
+                            "equal", "deepEqual", "strictEqual",
+                            "ok", "is", "isTrue",
+                        ):
+                            positive += 1
+
+    return positive, negative, test_functions, boundary_functions
+
+
 @register_signal
 class TestPolarityDeficitSignal(BaseSignal):
     """Detect test suites dominated by positive / happy-path assertions."""
@@ -160,28 +272,38 @@ class TestPolarityDeficitSignal(BaseSignal):
         module_counters: dict[str, _AssertionCounter] = {}
 
         for pr in parse_results:
-            if pr.language != "python" and pr.language not in (
-                "typescript", "tsx", "javascript", "jsx",
-            ):
+            if pr.language not in _SUPPORTED_LANGUAGES:
                 continue
-            if not _is_test_file(pr.file_path):
-                continue
-            # Only Python files can be AST-parsed here
-            if pr.language != "python":
+            if not is_test_file(pr.file_path):
                 continue
 
             source = _read_source(pr.file_path, self._repo_path)
             if source is None:
                 continue
 
-            try:
-                tree = ast.parse(source)
-            except SyntaxError:
-                continue
-
             module_key = PurePosixPath(pr.file_path.parent).as_posix()
-            counter = module_counters.setdefault(module_key, _AssertionCounter())
-            counter.visit(tree)
+
+            if pr.language in _TS_LANGUAGES:
+                ts_result = _ts_count_assertions(source, pr.language)
+                if ts_result is None:
+                    continue
+                pos, neg, tfuncs, bfuncs = ts_result
+                counter = module_counters.setdefault(
+                    module_key, _AssertionCounter(),
+                )
+                counter.positive += pos
+                counter.negative += neg
+                counter.test_functions += tfuncs
+                counter.boundary_functions += bfuncs
+            else:
+                try:
+                    tree = ast.parse(source)
+                except SyntaxError:
+                    continue
+                counter = module_counters.setdefault(
+                    module_key, _AssertionCounter(),
+                )
+                counter.visit(tree)
 
         findings: list[Finding] = []
 

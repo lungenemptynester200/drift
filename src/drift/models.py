@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import datetime
 from dataclasses import dataclass, field
 from enum import StrEnum
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import datetime
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -262,6 +264,7 @@ class RepoAnalysis:
     degradation_causes: list[str] = field(default_factory=list)
     degradation_components: list[str] = field(default_factory=list)
     degradation_events: list[dict[str, Any]] = field(default_factory=list)
+    ai_tools_detected: list[str] = field(default_factory=list)
 
     @property
     def severity(self) -> Severity:

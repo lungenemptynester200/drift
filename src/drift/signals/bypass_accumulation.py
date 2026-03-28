@@ -23,6 +23,7 @@ from drift.models import (
     Severity,
     SignalType,
 )
+from drift.signals._utils import _SUPPORTED_LANGUAGES, is_test_file
 from drift.signals.base import BaseSignal, register_signal
 
 # ── Bypass marker patterns ────────────────────────────────────────
@@ -34,15 +35,16 @@ _MARKER_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("type_safety", re.compile(r"\bcast\s*\(")),
     ("test", re.compile(r"pytest\.mark\.skip")),
     ("deferred", re.compile(r"#\s*(?:TODO|FIXME|HACK|XXX)\b")),
+    # TypeScript / JavaScript bypass markers
+    ("type_safety", re.compile(r"//\s*@ts-ignore\b")),
+    ("type_safety", re.compile(r"//\s*@ts-expect-error\b")),
+    ("type_safety", re.compile(r"//\s*@ts-nocheck\b")),
+    ("type_safety", re.compile(r"\bas\s+any\b")),
+    ("lint", re.compile(r"//\s*eslint-disable")),
 ]
 
 # typing.Any in function annotations — checked structurally
-_ANY_ANNOTATION = re.compile(r"\bAny\b")
-
-
-def _is_test_file(file_path: Path) -> bool:
-    name = file_path.name.lower()
-    return name.startswith("test_") or name.endswith("_test.py")
+_ANY_ANNOTATION = re.compile(r"\bAny\b|\bany\b")
 
 
 def _count_markers(source: str) -> dict[str, int]:
@@ -118,9 +120,9 @@ class BypassAccumulationSignal(BaseSignal):
         file_data: list[tuple[ParseResult, dict[str, int], int, float, int]] = []
 
         for pr in parse_results:
-            if pr.language != "python":
+            if pr.language not in _SUPPORTED_LANGUAGES:
                 continue
-            if _is_test_file(pr.file_path):
+            if is_test_file(pr.file_path):
                 continue
 
             source = _read_file_source(pr.file_path, self._repo_path)

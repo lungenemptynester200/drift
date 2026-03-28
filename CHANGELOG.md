@@ -3,6 +3,21 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] - 2026-03-28
+
+Short version: drift now ships first-class Copilot/MCP integration and extends core signal analysis to TypeScript/JavaScript for more actionable cross-tool architecture guidance.
+
+### Added
+
+- **`drift copilot-context` + instruction engine**: New command and generator that convert high-impact findings into merge-safe Copilot instruction blocks with deterministic sectioning and remediation guidance.
+- **`drift mcp --serve` server mode**: New MCP server entrypoint exposing drift analysis tools for editor/agent workflows, plus CLI wiring and dedicated MCP/Copilot coverage tests.
+- **Copilot evidence tooling**: New benchmark scripts and prompt-pair artifacts for reproducible Copilot-context coverage and behavioral evaluation.
+
+### Changed
+
+- **AI-attribution pipeline output**: Repository analysis now surfaces detected AI tool indicators and manual-ratio policy overrides in pipeline assembly and JSON output.
+- **TypeScript/JavaScript signal coverage**: Extended GCD, BEM, NBV, ECM, and TPD with shared tree-sitter utilities and dedicated phase test suites for TS/JS parity.
+
 ## [0.8.2] - 2026-03-28
 
 Short version: drift gains `drift config validate/show`, stable `rule_id` on findings, per-path configuration overrides, and expanded docs.
