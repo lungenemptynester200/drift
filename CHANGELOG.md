@@ -3,7 +3,7 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.10.6] - 2026-03-29
+## [0.10.7] - 2026-03-29
 
 Short version: drift adds token-efficient compact JSON output with deduplicated findings and explicit CLI toggles for agent/CI workflows.
 

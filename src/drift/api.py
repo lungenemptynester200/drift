@@ -861,10 +861,8 @@ def validate(
             weight_sum = sum(cfg.weights.as_dict().values())
             if weight_sum < 0.5 or weight_sum > 2.0:
                 warnings.append(
-                    (
-                        f"Weight sum {weight_sum:.3f} outside [0.5, 2.0] "
-                        "— auto-calibration will normalize"
-                    )
+                    f"Weight sum {weight_sum:.3f} outside [0.5, 2.0] "
+                    "— auto-calibration will normalize"
                 )
             for key, val in cfg.weights.as_dict().items():
                 if val < 0:

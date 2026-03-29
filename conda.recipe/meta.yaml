@@ -1,4 +1,4 @@
-{% set version = "0.10.6" %}
+{% set version = "0.10.7" %}
 
 package:
   name: drift-analyzer
