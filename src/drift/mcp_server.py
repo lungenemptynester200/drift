@@ -13,14 +13,22 @@ import time
 from pathlib import Path
 from typing import Any
 
+from drift.analyzer import analyze_diff, analyze_repo
+from drift.config import DriftConfig
+from drift.models import RepoAnalysis, SignalType
+from drift.output.json_output import _finding_to_dict
+
+MCPFastMCPImpl: Any
+
 try:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.fastmcp import FastMCP as _ImportedFastMCP
 
     _MCP_AVAILABLE = True
+    MCPFastMCPImpl = _ImportedFastMCP
 except ImportError:
     _MCP_AVAILABLE = False
 
-    class FastMCP:  # type: ignore[override]
+    class _FallbackFastMCP:
         """Minimal fallback so helper functions stay importable without mcp extra."""
 
         def __init__(self, *_args: object, **_kwargs: object) -> None:
@@ -36,16 +44,12 @@ except ImportError:
             msg = "MCP server requires optional dependency 'mcp'."
             raise RuntimeError(msg)
 
-from drift.analyzer import analyze_diff, analyze_repo
-from drift.config import DriftConfig
-from drift.models import RepoAnalysis, SignalType
-from drift.output.json_output import _finding_to_dict
-
+    MCPFastMCPImpl = _FallbackFastMCP
 # ---------------------------------------------------------------------------
 # Server instance
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP(
+mcp = MCPFastMCPImpl(
     "drift",
     instructions=(
         "Drift is a deterministic static analyzer that detects architectural "

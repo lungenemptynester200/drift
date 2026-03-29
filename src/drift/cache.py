@@ -12,7 +12,7 @@ import logging
 import pickle
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from drift.models import (
     ClassInfo,
@@ -311,7 +311,11 @@ class SignalCache:
             if data.get("_v") != _SIGNAL_CACHE_VERSION:
                 path.unlink(missing_ok=True)
                 return None
-            return data["findings"]
+            findings = data.get("findings")
+            if not isinstance(findings, list):
+                path.unlink(missing_ok=True)
+                return None
+            return cast("list[Finding]", findings)
         except Exception:
             path.unlink(missing_ok=True)
             return None

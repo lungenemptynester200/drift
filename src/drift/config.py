@@ -213,10 +213,10 @@ class DriftConfig(BaseModel):
         except ValidationError as exc:
             from drift.errors import DriftConfigError
 
-            first = exc.errors()[0] if exc.errors() else {}
-            loc = first.get("loc", ())
+            first: Any = exc.errors()[0] if exc.errors() else None
+            loc = first.get("loc", ()) if first else ()
             field_path = ".".join(str(s) for s in loc) if loc else "unknown"
-            reason = first.get("msg", str(exc))
+            reason = str(first.get("msg", str(exc))) if first else str(exc)
             raise DriftConfigError(
                 "DRIFT-1001",
                 config_path=str(config_path),
@@ -243,14 +243,14 @@ class DriftConfig(BaseModel):
                 from drift.errors import DriftConfigError, yaml_context_snippet
 
                 line = getattr(exc, "problem_mark", None)
-                lineno = (line.line + 1) if line else 1
-                context = yaml_context_snippet(raw, lineno)
+                parse_lineno = (line.line + 1) if line else 1
+                parse_context = yaml_context_snippet(raw, parse_lineno)
                 raise DriftConfigError(
                     "DRIFT-1002",
                     config_path=str(config_path),
                     reason=str(exc),
-                    line=lineno,
-                    context=context,
+                    line=parse_lineno,
+                    context=parse_context,
                 ) from exc
 
             try:
@@ -262,19 +262,21 @@ class DriftConfig(BaseModel):
                     yaml_context_snippet,
                 )
 
-                first = exc.errors()[0] if exc.errors() else {}
-                loc = first.get("loc", ())
+                first: Any = exc.errors()[0] if exc.errors() else None
+                loc = first.get("loc", ()) if first else ()
                 field_path = ".".join(str(s) for s in loc) if loc else "unknown"
-                reason = first.get("msg", str(exc))
-                lineno = _find_yaml_line(raw, loc) if loc else None
-                context = yaml_context_snippet(raw, lineno or 1) if raw else None
+                reason = str(first.get("msg", str(exc))) if first else str(exc)
+                validation_lineno = _find_yaml_line(raw, loc) if loc else None
+                validation_context = (
+                    yaml_context_snippet(raw, validation_lineno or 1) if raw else None
+                )
                 raise DriftConfigError(
                     "DRIFT-1001",
                     config_path=str(config_path),
                     field=field_path,
                     reason=reason,
-                    line=lineno or "?",
-                    context=context,
+                    line=validation_lineno or "?",
+                    context=validation_context,
                 ) from exc
 
         return cls()
