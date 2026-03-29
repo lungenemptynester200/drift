@@ -3,6 +3,20 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.10] - 2026-03-30
+
+Short version: drift closes agent-facing workflow gaps identified through real-world agent behavior analysis — scoped fix-plan filtering, explicit in_scope_accept hints for noise isolation, and baseline workflow recommendations for legacy codebases.
+
+### Added
+
+- **`fix-plan --target-path` for agent-scoped repair**: Agents can now restrict fix-plan output to findings in a specific subdirectory (e.g., `drift fix-plan --target-path src/api`), preventing information overload when working on localized changes.
+- **Explicit `in_scope_accept` hints in `drift diff` recommendations**: When `out_of_scope_diff_noise` is the only blocker and the scoped target is clean, `recommended_next_actions` now explicitly says "use in_scope_accept (true) as the scoped gate decision" so agents recognize the viable decision path.
+- **Baseline workflow recommendation in `drift scan`**: When >20 high/critical findings exist, `recommended_next_actions` suggests `drift baseline save` → `drift diff --baseline` workflow so agents avoid the `accept_change=false` gate loop on legacy repos.
+
+### Changed
+
+- **Improved agent decision guidance**: Updated `_diff_next_actions` and `_scan_next_actions` to surface actionable next steps for common agent workflow patterns (scoped acceptance, baseline framing, uncommitted-change handling).
+
 ## [0.10.9] - 2026-03-29
 
 Short version: drift closes agent-facing gaps identified through real-world agent workflow analysis — consistent signal abbreviations, full explain coverage, and a scoped acceptance field that unblocks agents from pre-existing diff noise.

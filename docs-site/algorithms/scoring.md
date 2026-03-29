@@ -50,10 +50,11 @@ The v0.5 benchmark study used 6 core signals at higher weights (PFS=0.22, AVS=0.
 
 | Score Range | Severity |
 |---|---|
-| ≥ 0.70 | CRITICAL |
-| 0.50–0.70 | HIGH |
-| 0.30–0.50 | MEDIUM |
-| < 0.30 | LOW |
+| ≥ 0.80 | CRITICAL |
+| ≥ 0.60 and < 0.80 | HIGH |
+| ≥ 0.40 and < 0.60 | MEDIUM |
+| ≥ 0.20 and < 0.40 | LOW |
+| < 0.20 | INFO |
 
 ## Module-Level Scoring
 

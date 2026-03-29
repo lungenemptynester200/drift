@@ -7,6 +7,20 @@ from pathlib import Path
 import click
 
 from drift.commands import console
+from drift.models import Severity, severity_for_score
+
+
+def _badge_color_for_score(score: float) -> str:
+    """Return shield color aligned to canonical score severity mapping."""
+    severity = severity_for_score(score)
+
+    if severity is Severity.CRITICAL:
+        return "critical"
+    if severity is Severity.HIGH:
+        return "orange"
+    if severity is Severity.MEDIUM:
+        return "yellow"
+    return "brightgreen"
 
 
 @click.command()
@@ -44,14 +58,7 @@ def badge(repo: Path, since: int, config: Path | None, style: str, output: Path 
         analysis = analyze_repo(repo, cfg, since_days=since)
 
     score = analysis.drift_score
-    if score >= 0.6:
-        color = "critical"
-    elif score >= 0.4:
-        color = "orange"
-    elif score >= 0.2:
-        color = "yellow"
-    else:
-        color = "brightgreen"
+    color = _badge_color_for_score(score)
 
     label = quote("drift score")
     value = quote(f"{score:.2f}")

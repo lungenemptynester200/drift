@@ -1,0 +1,70 @@
+"""Regression tests for minimal CLI output and signal label rendering."""
+
+from __future__ import annotations
+
+import datetime
+from pathlib import Path
+
+from click.testing import CliRunner
+
+from drift.commands.analyze import analyze
+from drift.commands.check import check
+from drift.models import RepoAnalysis, SignalType
+from drift.output.rich_output import _signal_label
+
+
+class _DummyConfig:
+    embeddings_enabled = True
+    embedding_model = None
+
+    def severity_gate(self) -> str:
+        return "high"
+
+
+def _sample_analysis(score: float = 0.1) -> RepoAnalysis:
+    return RepoAnalysis(
+        repo_path=Path("."),
+        analyzed_at=datetime.datetime.now(tz=datetime.UTC),
+        drift_score=score,
+        findings=[],
+    )
+
+
+def test_analyze_quiet_emits_minimal_line(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("drift.config.DriftConfig.load", lambda *_args, **_kwargs: _DummyConfig())
+    monkeypatch.setattr("drift.analyzer.analyze_repo", lambda *_args, **_kwargs: _sample_analysis())
+
+    runner = CliRunner()
+    result = runner.invoke(analyze, ["--repo", str(tmp_path), "--quiet"])
+
+    assert result.exit_code == 0
+    out = result.output.strip()
+    assert out.startswith("score:")
+    assert "severity:" in out
+    assert "findings:" in out
+    assert "Drift check passed" not in out
+    assert "Drift check failed" not in out
+
+
+def test_check_quiet_emits_minimal_line(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("drift.config.DriftConfig.load", lambda *_args, **_kwargs: _DummyConfig())
+    monkeypatch.setattr("drift.analyzer.analyze_diff", lambda *_args, **_kwargs: _sample_analysis())
+
+    runner = CliRunner()
+    result = runner.invoke(check, ["--repo", str(tmp_path), "--quiet"])
+
+    assert result.exit_code == 0
+    out = result.output.strip()
+    assert out.startswith("score:")
+    assert "severity:" in out
+    assert "findings:" in out
+    assert "Drift check passed" not in out
+    assert "Drift check failed" not in out
+
+
+def test_signal_label_fallback_returns_real_signal_id(monkeypatch) -> None:
+    import drift.output.rich_output as rich_output
+
+    monkeypatch.delitem(rich_output._SIGNAL_LABELS, SignalType.COHESION_DEFICIT, raising=False)
+
+    assert _signal_label(SignalType.COHESION_DEFICIT) == SignalType.COHESION_DEFICIT.value

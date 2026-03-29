@@ -166,6 +166,7 @@ def drift_fix_plan(
     signal: str | None = None,
     max_tasks: int = 5,
     automation_fit_min: str | None = None,
+    target_path: str | None = None,
 ) -> str:
     """Generate prioritised repair tasks with constraints and success criteria.
 
@@ -178,6 +179,7 @@ def drift_fix_plan(
         signal: Filter to a specific signal ("PFS", "AVS", etc.).
         max_tasks: Maximum tasks to return (default: 5).
         automation_fit_min: Minimum automation fitness: "low", "medium", or "high".
+        target_path: Restrict tasks to findings inside this subpath.
     """
     from drift.api import fix_plan
 
@@ -186,6 +188,7 @@ def drift_fix_plan(
         signal=signal,
         max_tasks=max_tasks,
         automation_fit_min=automation_fit_min,
+        target_path=target_path,
     )
     return json.dumps(result, default=str)
 

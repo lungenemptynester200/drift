@@ -23,6 +23,11 @@ from drift.api import to_json
 @click.option("--signal", default=None, help="Filter to a specific signal (e.g. PFS).")
 @click.option("--max-tasks", type=int, default=5, help="Maximum tasks to return.")
 @click.option(
+    "--target-path",
+    default=None,
+    help="Restrict tasks to findings inside this subpath.",
+)
+@click.option(
     "--automation-fit-min",
     type=click.Choice(["low", "medium", "high"]),
     default=None,
@@ -40,6 +45,7 @@ def fix_plan(
     finding_id: str | None,
     signal: str | None,
     max_tasks: int,
+    target_path: str | None,
     automation_fit_min: str | None,
     output: Path | None,
 ) -> None:
@@ -50,6 +56,7 @@ def fix_plan(
         signal=signal,
         max_tasks=max_tasks,
         automation_fit_min=automation_fit_min,
+        target_path=target_path,
     )
     text = to_json(result)
     if output is not None:

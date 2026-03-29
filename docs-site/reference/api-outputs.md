@@ -96,6 +96,33 @@ result = analyze_diff(
 
 Both return a `RepoAnalysis` dataclass.
 
+## Score interpretation contract
+
+Use the following interpretation rules when automating decisions with drift score output:
+
+- Score scale: `0.0..1.0`
+- Score direction: higher means worse architectural drift
+- Composite score: weighted mean of per-signal scores
+
+Severity thresholds are stable and match runtime mapping:
+
+| Score Range | Severity |
+|---|---|
+| `>= 0.80` | `critical` |
+| `>= 0.60 and < 0.80` | `high` |
+| `>= 0.40 and < 0.60` | `medium` |
+| `>= 0.20 and < 0.40` | `low` |
+| `< 0.20` | `info` |
+
+For finding-level prioritization in JSON output:
+
+- `impact`: weighted, breadth-aware urgency estimate.
+    Formula: `signal_weight * score * (1 + log(1 + related_file_count))`.
+- `score_contribution`: estimated share of composite score.
+    Formula: `(signal_weight * score) / total_weight`.
+- `priority_class`: decision bucket used in `fix_first` ordering.
+    Values: `architecture_boundary`, `structural_risk`, `style_or_hygiene`.
+
 ### `RepoAnalysis` fields
 
 | Field | Type | Description |

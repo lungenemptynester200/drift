@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 import click
@@ -150,9 +151,15 @@ def check(
     effective_workers = workers if workers is not None else _DEFAULT_WORKERS
     effective_since = since_days if since_days is not None else 90
     status_console = Console(stderr=True) if output_format != "rich" else console
-    with status_console.status("[bold blue]Checking diff..."):
+    status_context = (
+        nullcontext() if quiet else status_console.status("[bold blue]Checking diff...")
+    )
+    with status_context:
         analysis = analyze_diff(
-            repo, cfg, diff_ref=diff_ref, workers=effective_workers,
+            repo,
+            cfg,
+            diff_ref=diff_ref,
+            workers=effective_workers,
             since_days=effective_since,
         )
 
@@ -210,13 +217,14 @@ def check(
         render_full_report(analysis, console, show_code=not no_code)
 
     if not severity_gate_pass(analysis.findings, threshold):
-        console.print(
-            f"\n[bold red]✗ Drift check failed:[/bold red] "
-            f"findings at or above '{threshold}' severity.",
-        )
+        if not quiet:
+            console.print(
+                f"\n[bold red]✗ Drift check failed:[/bold red] "
+                f"findings at or above '{threshold}' severity.",
+            )
         if not exit_zero:
             sys.exit(EXIT_FINDINGS_ABOVE_THRESHOLD)
-    else:
+    elif not quiet:
         console.print(
             f"\n[bold green]✓ Drift check passed[/bold green] (threshold: {threshold}).",
         )

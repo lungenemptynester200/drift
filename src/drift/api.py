@@ -354,10 +354,19 @@ def _format_scan_response(
 def _scan_next_actions(analysis: RepoAnalysis) -> list[str]:
     """Derive recommended tool calls from scan results."""
     actions: list[str] = []
+    high_critical = sum(
+        1 for f in analysis.findings
+        if f.severity.value in ("critical", "high")
+    )
     if analysis.findings:
         actions.append("drift_fix_plan for top-priority findings")
-    if any(f.severity.value in ("critical", "high") for f in analysis.findings):
+    if high_critical:
         actions.append("drift_explain for unfamiliar high-severity signals")
+    if high_critical > 20:
+        actions.append(
+            "Many pre-existing findings — use 'drift baseline save' then "
+            "'drift diff --baseline .drift-baseline.json' to focus on new changes only"
+        )
     if analysis.trend and analysis.trend.direction == "degrading":
         actions.append("drift_diff to identify recent regressions")
     return actions or ["No immediate action required"]
@@ -535,6 +544,7 @@ def diff(
             blocking_reasons=blocking_reasons,
             recommended_next_actions=_diff_next_actions(
                 scoped_new, status, blocking_reasons,
+                in_scope_accept=not in_scope_blocking,
             ),
             response_truncated=len(scoped_new) > max_findings,
         )
@@ -565,6 +575,8 @@ def _diff_next_actions(
     new_findings: list,
     status: str,
     blocking_reasons: list[str],
+    *,
+    in_scope_accept: bool = False,
 ) -> list[str]:
     """Derive next actions from diff results."""
     actions: list[str] = []
@@ -572,11 +584,16 @@ def _diff_next_actions(
         actions.append("drift_fix_plan for new findings")
     if any(f.severity.value in ("critical", "high") for f in new_findings):
         actions.append("drift_explain for high-severity signals")
-    if "out_of_scope_diff_noise" in blocking_reasons:
+    if "out_of_scope_diff_noise" in blocking_reasons and in_scope_accept:
+        actions.append(
+            "accept_change is false due to out-of-scope noise only — "
+            "use in_scope_accept (true) as the scoped gate decision"
+        )
+    elif "out_of_scope_diff_noise" in blocking_reasons:
         actions.append(
             "out_of_scope_diff_noise is pre-existing — check in_scope_accept "
-            "for the scoped decision; commit changes and re-run "
-            "drift diff --diff-ref HEAD~1 to isolate"
+            "for the scoped decision; use 'drift diff --diff-ref HEAD' for "
+            "uncommitted changes"
         )
     if status == "improved":
         actions.append("No action needed — drift is improving")
@@ -742,6 +759,7 @@ def fix_plan(
     signal: str | None = None,
     max_tasks: int = 5,
     automation_fit_min: str | None = None,
+    target_path: str | None = None,
 ) -> dict[str, Any]:
     """Generate a prioritized fix plan with constraints and success criteria.
 
@@ -757,6 +775,8 @@ def fix_plan(
         Maximum tasks to return.
     automation_fit_min:
         Minimum automation fitness level: ``"low"``, ``"medium"``, or ``"high"``.
+    target_path:
+        Restrict tasks to findings inside this subpath.
     """
     from drift.analyzer import analyze_repo
     from drift.config import DriftConfig
@@ -771,12 +791,24 @@ def fix_plan(
         "signal": signal,
         "max_tasks": max_tasks,
         "automation_fit_min": automation_fit_min,
+        "target_path": target_path,
     }
 
     try:
         cfg = DriftConfig.load(repo_path)
         analysis = analyze_repo(repo_path, config=cfg)
         tasks = analysis_to_agent_tasks(analysis)
+
+        # Filter by target_path
+        if target_path:
+            normalized = Path(target_path).as_posix().strip("/")
+            tasks = [
+                t for t in tasks
+                if t.file_path and (
+                    Path(t.file_path).as_posix().strip("/") == normalized
+                    or Path(t.file_path).as_posix().strip("/").startswith(normalized + "/")
+                )
+            ]
 
         # Filter by signal
         if signal:

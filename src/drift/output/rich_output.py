@@ -54,6 +54,11 @@ _SIGNAL_LABELS = {
 }
 
 
+def _signal_label(signal_type: SignalType) -> str:
+    """Return a stable signal label; fall back to canonical signal id."""
+    return _SIGNAL_LABELS.get(signal_type, signal_type.value)
+
+
 def _read_code_snippet(
     file_path: Path | None,
     start_line: int | None,
@@ -257,7 +262,7 @@ def render_module_table(analysis: RepoAnalysis, console: Console | None = None) 
         top_signal = ""
         if ms.signal_scores:
             top = max(ms.signal_scores, key=lambda s: ms.signal_scores[s])
-            top_signal = f"{_SIGNAL_LABELS.get(top, '?')} {ms.signal_scores[top]:.2f}"
+            top_signal = f"{_signal_label(top)} {ms.signal_scores[top]:.2f}"
 
         table.add_row(
             ms.path.as_posix() + "/",
@@ -278,7 +283,7 @@ def _format_finding_detail(
 ) -> Text:
     """Build the detail body for a single finding panel."""
     color = _SEVERITY_COLORS.get(f.severity, "white")
-    signal_label = _SIGNAL_LABELS.get(f.signal_type, f.signal_type.value[:3].upper())
+    signal_label = _signal_label(f.signal_type)
     text = Text()
 
     # Title: [SIGNAL] Description (score)
@@ -370,7 +375,7 @@ def render_findings(
     for f in sorted_findings[:max_items]:
         icon = _SEVERITY_ICONS.get(f.severity, "?")
         color = _SEVERITY_COLORS.get(f.severity, "white")
-        signal = _SIGNAL_LABELS.get(f.signal_type, "?")
+        signal = _signal_label(f.signal_type)
 
         table.add_row(
             Text(icon, style=color),
@@ -409,7 +414,7 @@ def _format_module_detail(module: ModuleScore) -> Text:
     text.append(f"  ({module.severity.value.upper()})\n\n", style="dim")
 
     for sig_type, score in sorted(module.signal_scores.items(), key=lambda x: x[1], reverse=True):
-        label = _SIGNAL_LABELS.get(sig_type, "???")
+        label = _signal_label(sig_type)
         bar = "█" * int(score * 15) + "░" * (15 - int(score * 15))
 
         color = "green"

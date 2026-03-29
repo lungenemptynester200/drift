@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 import click
@@ -192,16 +193,17 @@ def analyze(
         _last_total = max(total, 1)
         task_id = progress.add_task(phase, total=_last_total, completed=current)
 
-    with progress:
+    progress_context = nullcontext() if quiet else progress
+    with progress_context:
         analysis = analyze_repo(
             repo,
             cfg,
             since_days=since,
             target_path=path,
-            on_progress=_on_progress,
+            on_progress=None if quiet else _on_progress,
             workers=workers if workers is not None else _DEFAULT_WORKERS,
         )
-        if task_id is not None:
+        if not quiet and task_id is not None:
             progress.update(task_id, completed=_last_total)
 
     # Baseline filtering: remove known findings if --baseline is provided
@@ -292,13 +294,14 @@ def analyze(
         from drift.scoring.engine import severity_gate_pass
 
         if not severity_gate_pass(analysis.findings, threshold):
-            console.print(
-                f"\n[bold red]\u2717 Drift check failed:[/bold red] "
-                f"findings at or above '{threshold}' severity.",
-            )
+            if not quiet:
+                console.print(
+                    f"\n[bold red]\u2717 Drift check failed:[/bold red] "
+                    f"findings at or above '{threshold}' severity.",
+                )
             if not exit_zero:
                 sys.exit(EXIT_FINDINGS_ABOVE_THRESHOLD)
-        else:
+        elif not quiet:
             console.print(
                 f"\n[bold green]\u2713 Drift check passed[/bold green] "
                 f"(threshold: {threshold}).",
