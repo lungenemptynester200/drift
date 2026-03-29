@@ -1,6 +1,6 @@
 # STUDY.md — Evaluating Architectural Drift Detection in Real-World Python Projects
 
-> **Versioning note (2026-03-29):** The package version in this repository is drift v0.10.2. Most quantitative benchmark artifacts referenced in this document were generated with drift v0.5.0 unless a later dated section states otherwise. The current production model exposes 19 configured signals, of which 15 are scoring-active and 4 remain report-only pending broader validation. This file therefore documents a historical evidence baseline and must not be read as a full description of the current live signal model.
+> **Versioning note (2026-03-29):** The package version in this repository is drift v0.10.8. Most quantitative benchmark artifacts referenced in this document were generated with drift v0.5.0 unless a later dated section states otherwise. The current production model exposes 19 configured signals, of which 15 are scoring-active and 4 remain report-only pending broader validation. This file therefore documents a historical evidence baseline and must not be read as a full description of the current live signal model.
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### Public Claims Safe To Repeat As Of 2026-03-29
 
-- The package version in this repository is drift v0.10.2. The core benchmark corpus summarized below is the v0.5.0 evidence baseline.
+- The package version in this repository is drift v0.10.8. The core benchmark corpus summarized below is the v0.5.0 evidence baseline.
 - The v0.5 baseline composite score used 6 scoring signals. The current model exposes 19 configured signals, with 15 scoring-active and 4 report-only pending broader validation; quantitative precision/recall claims in this study apply only to the historical 6-signal model and have not been revalidated for the current live model.
 - The current study corpus still covers 15 real-world repositories.
 - All analysis is deterministic; no LLM is used in the detector pipeline.
@@ -23,7 +23,7 @@ For methodology, see §1. For precision tables, see §3. For threats to validity
 
 ## Abstract
 
-This document records the evidence base behind drift, whose package version in this repository is currently v0.10.2. The main quantitative corpus in §§1–12 is a frozen v0.5.0 benchmark baseline combining three methods: (1) a **ground-truth precision analysis** of 286 classified findings across 5 repositories, (2) a **historical controlled mutation benchmark** over 14 intentionally injected drift patterns, and (3) a **usefulness study** demonstrating actionable findings in a production codebase. The strongest current repeatable precision claim from that corpus remains 77% precision (strict) / 95% lenient on the score-weighted sample, using non-circular classification criteria; this claim applies to the v0.5 6-signal model and has not been revalidated for the current v0.10.x live model with 19 configured signals. A fresh v0.7.1 mutation benchmark (17 patterns, 10 signals, synthetic repo with git history) yields 88% detection recall. The tool is fully deterministic — no LLM is used in the analysis pipeline ([ADR-001](adr/001-deterministic-analysis-pipeline.md)).
+This document records the evidence base behind drift, whose package version in this repository is currently v0.10.8. The main quantitative corpus in §§1–12 is a frozen v0.5.0 benchmark baseline combining three methods: (1) a **ground-truth precision analysis** of 286 classified findings across 5 repositories, (2) a **historical controlled mutation benchmark** over 14 intentionally injected drift patterns, and (3) a **usefulness study** demonstrating actionable findings in a production codebase. The strongest current repeatable precision claim from that corpus remains 77% precision (strict) / 95% lenient on the score-weighted sample, using non-circular classification criteria; this claim applies to the v0.5 6-signal model and has not been revalidated for the current v0.10.x live model with 19 configured signals. A fresh v0.7.1 mutation benchmark (17 patterns, 10 signals, synthetic repo with git history) yields 88% detection recall. The tool is fully deterministic — no LLM is used in the analysis pipeline ([ADR-001](adr/001-deterministic-analysis-pipeline.md)).
 
 ---
 
@@ -1066,11 +1066,40 @@ They meet the Phase 2 quality bar for report-only signals. Promotion to
 scoring status (weight > 0.00) requires external corpus validation — this is
 deferred to a future study iteration.
 
+### 12.10 Empirical Evidence for v0.10.8 Agent-Native Workflow Releases (2026-03-29)
+
+drift v0.10.8 extends the deterministic agent workflow surface and release
+gating semantics:
+
+- top-level structured CLI commands: `drift validate`, `drift scan`, `drift diff`, `drift fix-plan`
+- explicit machine-readable acceptance fields in `scan` and `diff`
+- telemetry `run_id` correlation for cross-tool session tracing
+- path-scoped diff decisioning with explicit out-of-scope noise accounting
+
+**Evidence commands:**
+```bash
+python -m pytest tests/test_telemetry.py tests/test_agent_native_cli.py tests/test_cli_runtime.py tests/test_mcp_copilot.py tests/test_output_golden.py -q --tb=short
+python -m pytest tests/ --tb=short --ignore=tests/test_smoke.py -q --maxfail=1
+```
+
+**Observed result (local run, deterministic):**
+
+- targeted release-surface suite: 54 passed, 3 warnings
+- quick no-smoke regression suite: 1083 passed, 5 skipped, 1 warning
+- 0 failures accepted for release
+
+**Scope note:**
+
+This run is a release-acceptance proof for deterministic agent-facing CLI/API
+contracts and telemetry correlation in v0.10.8. It does not supersede the
+historical benchmark baseline, but it does provide a reproducible verification
+point for the new workflow and gating behavior before publication.
+
 ---
 
 ## 13. Conclusion
 
-This study now represents a mixed evidence record: a frozen v0.5.0 benchmark baseline, later dated engineering addenda, and a current v0.8.2 codebase that has moved ahead of parts of the evaluation corpus. The strongest repeatable claim remains that deterministic static analysis — without LLM involvement — can surface meaningful structural erosion signals across Python and TypeScript/JavaScript codebases, but not every earlier headline metric should be repeated as a current-package claim. Across 8 Python repositories (score range 0.376–0.599) and 5 TypeScript repositories (score range 0.373–0.697):
+This study now represents a mixed evidence record: a frozen v0.5.0 benchmark baseline, later dated engineering addenda, and a current v0.10.8 codebase that has moved ahead of parts of the evaluation corpus. The strongest repeatable claim remains that deterministic static analysis — without LLM involvement — can surface meaningful structural erosion signals across Python and TypeScript/JavaScript codebases, but not every earlier headline metric should be repeated as a current-package claim. Across 8 Python repositories (score range 0.376–0.599) and 5 TypeScript repositories (score range 0.373–0.697):
 
 - **77% precision** (strict) / 95% lenient on 286 classified findings using non-circular heuristics, with **15 false positives** (6 from active signals, 9 from DIA)
 - **~93% pre-calibration precision** on 373 findings across 3 previously unseen repositories (httpie, arrow, frappe) — single-rater annotation; post-calibration 100% but constitutes data leakage (see §11.10)

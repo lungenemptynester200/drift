@@ -39,7 +39,19 @@ def test_validate_outputs_json(tmp_path: Path) -> None:
     assert "git_available" in payload
 
 
-def test_scan_outputs_json(tmp_path: Path) -> None:
+def test_scan_outputs_json(monkeypatch, tmp_path: Path) -> None:
+    import drift.commands.scan as scan_command
+
+    monkeypatch.setattr(
+        scan_command,
+        "api_scan",
+        lambda *args, **kwargs: {
+            "schema_version": "2.0",
+            "accept_change": True,
+            "blocking_reasons": [],
+        },
+    )
+
     runner = CliRunner()
     result = runner.invoke(main, ["scan", "--repo", str(tmp_path), "--max-findings", "1"])
     assert result.exit_code == 0

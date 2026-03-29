@@ -427,11 +427,15 @@ def diff(
             normalized_target = Path(target_path).as_posix().strip("/")
 
             def _in_scope(finding: Any) -> bool:
-                if not finding.file_path or not normalized_target:
+                raw_file_path = getattr(finding, "file_path", None)
+                if raw_file_path is None or not normalized_target:
                     return False
-                file_path = finding.file_path.as_posix().strip("/")
-                return file_path == normalized_target or file_path.startswith(
+                file_path = Path(raw_file_path).as_posix().strip("/")
+                return bool(
+                    file_path == normalized_target
+                    or file_path.startswith(
                     normalized_target + "/"
+                )
                 )
 
             scoped_new = [finding for finding in new if _in_scope(finding)]
