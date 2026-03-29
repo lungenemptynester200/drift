@@ -1097,7 +1097,41 @@ point for the new workflow and gating behavior before publication.
 
 ---
 
-## 13. Conclusion
+### 12.11 Empirical Evidence for v0.10.9 Agent Signal Consistency (2026-03-29)
+
+drift v0.10.9 closes agent-facing gaps identified through real-world agent
+workflow analysis:
+
+- `_SIGNAL_PREFIX` extended to all 19 signals — eliminates wrong fallback
+  abbreviations (`byp-`, `cog-`, `dea-`) that caused agents to hallucinate
+  signal names (COG, DEA) when looking up task IDs
+- `drift explain` extended to all 19 signals (previously 13/19)
+- explicit `signal_abbrev` field in fix-plan task dicts
+- `_ABBREV_TO_SIGNAL` extended to 19 entries (CXS, FOE, CIR, DCA)
+- new `in_scope_accept` field in `drift diff` for noise-independent scoped
+  acceptance gating
+- improved `recommended_next_actions` for `out_of_scope_diff_noise`
+
+**Evidence commands:**
+```bash
+python -m pytest tests/ --tb=short --ignore=tests/test_smoke.py -q --maxfail=5
+```
+
+**Observed result (local run, deterministic):**
+
+- full regression suite: 1059 passed, 5 skipped, 42 deselected, 1 warning
+- 0 failures
+
+**Scope note:**
+
+All changes are backward-compatible additive additions to the agent API surface.
+The signal-coverage fix is deterministic: `drift explain DCA` now returns a
+result instead of an error; fix-plan task IDs for dead_code_accumulation now
+have the `dca-` prefix instead of the broken `dea-` fallback.
+
+---
+
+
 
 This study now represents a mixed evidence record: a frozen v0.5.0 benchmark baseline, later dated engineering addenda, and a current v0.10.8 codebase that has moved ahead of parts of the evaluation corpus. The strongest repeatable claim remains that deterministic static analysis — without LLM involvement — can surface meaningful structural erosion signals across Python and TypeScript/JavaScript codebases, but not every earlier headline metric should be repeated as a current-package claim. Across 8 Python repositories (score range 0.376–0.599) and 5 TypeScript repositories (score range 0.373–0.697):
 
