@@ -20,7 +20,7 @@ class TestExplainSignalData:
     """Validate the signal reference data completeness."""
 
     def test_all_13_signals_present(self) -> None:
-        assert len(_SIGNAL_INFO) == 13
+        assert len(_SIGNAL_INFO) == 19
 
     @pytest.mark.parametrize("abbr", list(_SIGNAL_INFO.keys()))
     def test_each_signal_has_required_keys(self, abbr: str) -> None:

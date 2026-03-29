@@ -8,6 +8,43 @@ from pathlib import Path
 import pytest
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Add an explicit opt-in for slow tests.
+
+    By default, slow tests are deselected to keep the standard local and CI
+    feedback loop fast. Users can opt in to the full suite with --run-slow or
+    select markers explicitly with -m.
+    """
+    parser.addoption(
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="run tests marked as slow",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Deselect slow tests unless the user opted in explicitly."""
+    if config.getoption("--run-slow"):
+        return
+
+    markexpr = (getattr(config.option, "markexpr", "") or "").strip()
+    if markexpr:
+        return
+
+    kept: list[pytest.Item] = []
+    deselected: list[pytest.Item] = []
+    for item in items:
+        if item.get_closest_marker("slow") is not None:
+            deselected.append(item)
+        else:
+            kept.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = kept
+
+
 @pytest.fixture
 def tmp_repo(tmp_path: Path) -> Path:
     """Create a minimal repo structure with Python files."""

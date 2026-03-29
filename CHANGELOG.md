@@ -3,6 +3,18 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.9] - 2026-03-29
+
+Short version: drift closes agent-facing gaps identified through real-world agent workflow analysis — consistent signal abbreviations, full explain coverage, and a scoped acceptance field that unblocks agents from pre-existing diff noise.
+
+### Added
+
+- **Full signal coverage in `drift explain`**: Added the 6 previously missing signals — COD, CCC, CXS, FOE, CIR, DCA — so all 19 signals are now reachable via `drift explain <ABBREV>`.
+- **Consistent task ID prefixes for all 19 signals**: Extended `_SIGNAL_PREFIX` from 6 to all 19 signals, eliminating wrong fallback prefixes (`byp-`, `cog-`, `dea-`). Added explicit `signal_abbrev` field to fix-plan task dicts so agents can call `drift explain <signal_abbrev>` directly.
+- **Complete `_ABBREV_TO_SIGNAL` mapping**: Extended from 15 to 19 entries (CXS, FOE, CIR, DCA) so `drift fix-plan --signal CXS` and `resolve_signal()` work for all signals.
+- **`in_scope_accept` field in `drift diff`**: New boolean field that signals whether the scoped target path is clean, independent of pre-existing out-of-scope diff noise — prevents agents from blocking on noise they cannot resolve.
+- **Actionable `out_of_scope_diff_noise` guidance**: `recommended_next_actions` in diff responses explains what out-of-scope noise means and provides a concrete resolution path (`commit changes ; drift diff --diff-ref HEAD~1`).
+
 ## [0.10.8] - 2026-03-29
 
 Short version: drift strengthens its agent-native workflow with top-level CLI parity, explicit machine-readable acceptance fields, and better telemetry correlation.

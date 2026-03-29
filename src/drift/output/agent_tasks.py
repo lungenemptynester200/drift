@@ -21,6 +21,19 @@ _SIGNAL_PREFIX = {
     SignalType.EXPLAINABILITY_DEFICIT: "eds",
     SignalType.TEMPORAL_VOLATILITY: "tvs",
     SignalType.SYSTEM_MISALIGNMENT: "sms",
+    SignalType.DOC_IMPL_DRIFT: "dia",
+    SignalType.BROAD_EXCEPTION_MONOCULTURE: "bem",
+    SignalType.TEST_POLARITY_DEFICIT: "tpd",
+    SignalType.GUARD_CLAUSE_DEFICIT: "gcd",
+    SignalType.COHESION_DEFICIT: "cod",
+    SignalType.NAMING_CONTRACT_VIOLATION: "nbv",
+    SignalType.BYPASS_ACCUMULATION: "bat",
+    SignalType.EXCEPTION_CONTRACT_DRIFT: "ecm",
+    SignalType.CO_CHANGE_COUPLING: "ccc",
+    SignalType.COGNITIVE_COMPLEXITY: "cxs",
+    SignalType.FAN_OUT_EXPLOSION: "foe",
+    SignalType.CIRCULAR_IMPORT: "cir",
+    SignalType.DEAD_CODE_ACCUMULATION: "dca",
 }
 
 

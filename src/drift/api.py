@@ -43,6 +43,10 @@ _ABBREV_TO_SIGNAL: dict[str, SignalType] = {
     "ECM": SignalType.EXCEPTION_CONTRACT_DRIFT,
     "COD": SignalType.COHESION_DEFICIT,
     "CCC": SignalType.CO_CHANGE_COUPLING,
+    "CXS": SignalType.COGNITIVE_COMPLEXITY,
+    "FOE": SignalType.FAN_OUT_EXPLOSION,
+    "CIR": SignalType.CIRCULAR_IMPORT,
+    "DCA": SignalType.DEAD_CODE_ACCUMULATION,
 }
 
 _SIGNAL_TO_ABBREV: dict[str, str] = {v.value: k for k, v in _ABBREV_TO_SIGNAL.items()}
@@ -494,11 +498,15 @@ def diff(
             summary_parts.append(f"{len(out_of_scope_new)} out-of-scope")
         summary_parts.append(f"drift score {'+' if delta >= 0 else ''}{delta:.3f}")
 
-        blocking_reasons: list[str] = []
+        # Compute in-scope-only accept decision (D6: helps agents isolate
+        # scoped results from pre-existing out-of-scope noise).
+        in_scope_blocking: list[str] = []
         if high_count:
-            blocking_reasons.append("new_high_or_critical_findings")
+            in_scope_blocking.append("new_high_or_critical_findings")
         if delta > 0.0:
-            blocking_reasons.append("drift_score_regressed")
+            in_scope_blocking.append("drift_score_regressed")
+
+        blocking_reasons: list[str] = list(in_scope_blocking)
         if out_of_scope_new:
             blocking_reasons.append("out_of_scope_diff_noise")
 
@@ -523,8 +531,11 @@ def diff(
             affected_components=affected,
             summary=", ".join(summary_parts),
             accept_change=not blocking_reasons,
+            in_scope_accept=not in_scope_blocking,
             blocking_reasons=blocking_reasons,
-            recommended_next_actions=_diff_next_actions(scoped_new, status),
+            recommended_next_actions=_diff_next_actions(
+                scoped_new, status, blocking_reasons,
+            ),
             response_truncated=len(scoped_new) > max_findings,
         )
         _emit_api_telemetry(
@@ -550,13 +561,23 @@ def diff(
         raise
 
 
-def _diff_next_actions(new_findings: list, status: str) -> list[str]:
+def _diff_next_actions(
+    new_findings: list,
+    status: str,
+    blocking_reasons: list[str],
+) -> list[str]:
     """Derive next actions from diff results."""
     actions: list[str] = []
     if status in ("degraded", "new_critical"):
         actions.append("drift_fix_plan for new findings")
     if any(f.severity.value in ("critical", "high") for f in new_findings):
         actions.append("drift_explain for high-severity signals")
+    if "out_of_scope_diff_noise" in blocking_reasons:
+        actions.append(
+            "out_of_scope_diff_noise is pre-existing — check in_scope_accept "
+            "for the scoped decision; commit changes and re-run "
+            "drift diff --diff-ref HEAD~1 to isolate"
+        )
     if status == "improved":
         actions.append("No action needed — drift is improving")
     return actions or ["No immediate action required"]
@@ -842,6 +863,7 @@ def _task_to_api_dict(t: Any) -> dict[str, Any]:
         "id": t.id,
         "priority": t.priority,
         "signal": signal_abbrev(t.signal_type),
+        "signal_abbrev": signal_abbrev(t.signal_type),
         "severity": t.severity.value,
         "title": t.title,
         "action": t.action,

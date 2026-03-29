@@ -217,12 +217,19 @@ EXTERNAL_REPOS = [
 class TestExternalRepos:
     """Clone and analyze real open-source repos. Requires network."""
 
-    @pytest.fixture(params=EXTERNAL_REPOS, ids=[r[0] for r in EXTERNAL_REPOS])
+    @pytest.fixture(scope="session")
+    def external_repo_root(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
+        """Create one temporary root for cloned external repositories."""
+        return tmp_path_factory.mktemp("external-repos")
+
+    @pytest.fixture(
+        scope="session", params=EXTERNAL_REPOS, ids=[r[0] for r in EXTERNAL_REPOS]
+    )
     def repo_analysis(
-        self, request: pytest.FixtureRequest, tmp_path: Path
+        self, request: pytest.FixtureRequest, external_repo_root: Path
     ) -> tuple[str, RepoAnalysis]:
         name, url, score_min, score_max, min_files, expected_signals, clone_timeout = request.param
-        clone_dir = tmp_path / name
+        clone_dir = external_repo_root / name
         try:
             _shallow_clone(url, clone_dir, timeout=clone_timeout)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:

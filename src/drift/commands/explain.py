@@ -329,6 +329,154 @@ _SIGNAL_INFO: dict[str, dict[str, str]] = {
             "Protocol or abstract base class to formalize contracts."
         ),
     },
+    "COD": {
+        "signal_type": "cohesion_deficit",
+        "name": "Cohesion Deficit",
+        "weight": "0.01",
+        "description": (
+            "Detects modules or classes with low internal cohesion — members "
+            "that don't share data or call each other, indicating the unit "
+            "bundles unrelated responsibilities."
+        ),
+        "detects": (
+            "Classes where methods operate on disjoint subsets of attributes, "
+            "or modules where top-level functions share no imports or calls. "
+            "Signals 'kitchen-sink' modules that grew by accretion."
+        ),
+        "example": (
+            "  class UserService:\n"
+            "      def create_user(self, data): ...   # uses self.db\n"
+            "      def send_email(self, msg): ...     # uses self.smtp\n"
+            "      def generate_report(self, q): ...  # uses self.analytics"
+        ),
+        "fix_hint": (
+            "Split the module or class along cohesion boundaries. Group "
+            "functions that share the same data and dependencies."
+        ),
+    },
+    "CCC": {
+        "signal_type": "co_change_coupling",
+        "name": "Co-Change Coupling",
+        "weight": "0.005",
+        "description": (
+            "Detects file pairs that are almost always changed together in "
+            "commits, indicating hidden coupling not visible in the import graph."
+        ),
+        "detects": (
+            "Files with co-change frequency above threshold (e.g. >80% of "
+            "commits touching file A also touch file B). Signals implicit "
+            "contracts, shared assumptions, or missing abstractions."
+        ),
+        "example": (
+            "  # 9 out of 10 commits that touch models/user.py also\n"
+            "  # touch serializers/user.py and tests/test_user.py\n"
+            "  # → hidden coupling between model and serializer"
+        ),
+        "fix_hint": (
+            "Investigate whether coupled files share an implicit contract. "
+            "Consider extracting shared types or introducing an interface "
+            "to make the dependency explicit."
+        ),
+    },
+    "CXS": {
+        "signal_type": "cognitive_complexity",
+        "name": "Cognitive Complexity",
+        "weight": "0.0 (report-only)",
+        "description": (
+            "Detects functions with excessive cognitive complexity — deeply "
+            "nested control flow, many branches, and interleaved logic that "
+            "is hard to follow mentally."
+        ),
+        "detects": (
+            "Functions exceeding a cognitive complexity threshold (default: 15). "
+            "Unlike cyclomatic complexity, cognitive complexity penalises "
+            "nesting depth and break-of-flow structures more heavily."
+        ),
+        "example": (
+            "  def process_order(order, user, config):\n"
+            "      if order.status == 'new':          # +1\n"
+            "          for item in order.items:        # +2 (nesting)\n"
+            "              if item.stock > 0:          # +3 (nesting)\n"
+            "                  if user.is_premium:     # +4 (nesting)\n"
+            "                      ...                 # CC already 10+"
+        ),
+        "fix_hint": (
+            "Extract nested blocks into well-named helper functions. "
+            "Use early returns and guard clauses to reduce nesting depth. "
+            "Split functions exceeding 2× the threshold."
+        ),
+    },
+    "FOE": {
+        "signal_type": "fan_out_explosion",
+        "name": "Fan-Out Explosion",
+        "weight": "0.0 (report-only)",
+        "description": (
+            "Detects modules or functions that import or depend on an "
+            "excessive number of other modules — high fan-out indicating "
+            "a 'God module' or orchestration bottleneck."
+        ),
+        "detects": (
+            "Modules whose import count or function-call fan-out exceeds "
+            "a threshold relative to the repository median. Signals tight "
+            "coupling and high blast radius for changes."
+        ),
+        "example": (
+            "  # app/main.py imports 35 modules directly\n"
+            "  # Repository median: 8 imports per module\n"
+            "  # → fan-out z-score: 3.1 (anomalous)"
+        ),
+        "fix_hint": (
+            "Introduce a facade or mediator pattern to reduce direct "
+            "dependencies. Split orchestration logic into smaller, focused "
+            "modules with explicit contracts."
+        ),
+    },
+    "CIR": {
+        "signal_type": "circular_import",
+        "name": "Circular Import",
+        "weight": "0.0 (report-only)",
+        "description": (
+            "Detects circular import chains — module A imports B which "
+            "imports C which imports A. A structural anti-pattern that "
+            "causes runtime errors and prevents clean layering."
+        ),
+        "detects": (
+            "Import cycles of any length in the module dependency graph. "
+            "Reports the shortest cycle path and all participating modules."
+        ),
+        "example": (
+            "  # models/user.py → services/auth.py → models/user.py\n"
+            "  # Cycle length: 2"
+        ),
+        "fix_hint": (
+            "Break the cycle by extracting shared types into a common module, "
+            "using dependency injection, or deferring imports with "
+            "TYPE_CHECKING guards."
+        ),
+    },
+    "DCA": {
+        "signal_type": "dead_code_accumulation",
+        "name": "Dead Code Accumulation",
+        "weight": "0.0 (report-only)",
+        "description": (
+            "Detects functions, classes, or module-level symbols that are "
+            "defined but never referenced elsewhere in the codebase."
+        ),
+        "detects": (
+            "Unreferenced exports that accumulate over time as code evolves. "
+            "Excludes framework entry-points (decorated handlers, CLI commands), "
+            "test functions, and __dunder__ methods."
+        ),
+        "example": (
+            "  def legacy_migrate_v2(db):  # defined but never called\n"
+            "      ...                     # 85 lines of dead code"
+        ),
+        "fix_hint": (
+            "Remove confirmed dead code. For uncertain cases, add a "
+            "deprecation marker and monitor usage before deletion. "
+            "Verify framework entry-points are not false positives."
+        ),
+    },
 }
 
 # Build a lookup by abbreviation (case-insensitive) and by signal_type value
