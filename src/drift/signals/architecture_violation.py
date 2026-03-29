@@ -449,9 +449,9 @@ class ArchitectureViolationSignal(BaseSignal):
                         start_line=line,
                         related_files=[Path(dst)],
                         fix=(
-                            f"Verschiebe {Path(dst).name}-Logik in eine Service-Schicht "
-                            f"oder Abstraktions-Interface, das von {Path(src).name} "
-                            f"importiert werden darf."
+                            f"Move {Path(dst).name} logic behind a service layer "
+                            f"or abstraction interface that {Path(src).name} "
+                            f"is allowed to import."
                         ),
                         metadata={
                             "src_layer": src_layer,
@@ -698,9 +698,8 @@ class ArchitectureViolationSignal(BaseSignal):
                     ),
                     file_path=Path(node),
                     fix=(
-                        f"Teile {Path(node).name} entlang fachlicher Verantwortlichkeiten "
-                        f"auf und extrahiere stabile Schnittstellen, um Fan-In/Fan-Out "
-                        f"zu reduzieren."
+                        f"Split {Path(node).name} by responsibility and extract stable "
+                        f"interfaces to reduce fan-in and fan-out."
                     ),
                     metadata={
                         "afferent_coupling": ca,

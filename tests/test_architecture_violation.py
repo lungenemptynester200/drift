@@ -122,6 +122,9 @@ def test_upward_import_detected():
     upward = [f for f in findings if "Upward" in f.title]
     assert len(upward) >= 1
     assert upward[0].signal_type == SignalType.ARCHITECTURE_VIOLATION
+    assert upward[0].fix is not None
+    assert "Move routes.py logic behind a service layer" in upward[0].fix
+    assert "Verschiebe" not in upward[0].fix
 
 
 def test_circular_dependency_detected():
@@ -345,6 +348,9 @@ def test_god_module_candidate_detected():
 
     god = [f for f in findings if "God module candidate" in f.title]
     assert len(god) >= 1
+    assert god[0].fix is not None
+    assert "Split hub.py by responsibility" in god[0].fix
+    assert "Teile" not in god[0].fix
 
 
 def test_unstable_dependency_detected_with_churn_history():

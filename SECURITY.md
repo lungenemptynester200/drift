@@ -10,7 +10,7 @@
 | 0.7.x   | :white_check_mark: |
 | < 0.7   | :x:                |
 
-Current release line: **v0.10.0**.
+Current release line: **v0.10.1**.
 
 ## Reporting a Vulnerability
 

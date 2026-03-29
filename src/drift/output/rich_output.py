@@ -309,7 +309,7 @@ def _format_finding_detail(
             text.append(f"  → {rf.as_posix()}\n", style="dim")
         remainder = len(f.related_files) - len(shown)
         if remainder > 0:
-            text.append(f"  … und {remainder} weitere\n", style="dim italic")
+            text.append(f"  … and {remainder} more\n", style="dim italic")
 
     # Description (first line only in compact view)
     first_line = f.description.splitlines()[0] if f.description else ""

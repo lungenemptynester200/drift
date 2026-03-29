@@ -3,6 +3,15 @@
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.1] - 2026-03-29
+
+Short version: drift restores fully English user-facing finding output so CLI and release surfaces stay language-consistent.
+
+### Fixed
+
+- **English-only finding remediation text**: Translated the remaining German fix/recommendation strings in pattern fragmentation, architecture violation, co-change coupling, mutant duplicates, and rich-output remainder rendering.
+- **Regression coverage for output language**: Added focused assertions so the translated fix text remains actionable and does not regress back to mixed German/English output.
+
 ## [0.10.0] - 2026-03-29
 
 Short version: drift broadens deterministic architecture coverage with five new Python coherence signals while improving runtime ergonomics for larger analysis workflows.

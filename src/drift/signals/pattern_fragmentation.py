@@ -141,9 +141,9 @@ class PatternFragmentationSignal(BaseSignal):
                 nc_files = sorted({p.file_path.name for p in non_canonical})
                 nc_count = len(non_canonical)
                 fix = (
-                    f"Konsolidiere auf das dominante Pattern ({canonical_count}×). "
-                    f"{nc_count} Abweichung(en) in: {', '.join(nc_files[:5])}"
-                    + (f" und {nc_count - 5} weitere" if nc_count > 5 else "")
+                    f"Consolidate to the dominant pattern ({canonical_count}×). "
+                    f"{nc_count} deviations in: {', '.join(nc_files[:5])}"
+                    + (f" and {nc_count - 5} more" if nc_count > 5 else "")
                     + "."
                 )
 

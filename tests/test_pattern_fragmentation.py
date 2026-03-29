@@ -91,6 +91,10 @@ def test_two_variants_detected():
     assert f.metadata["total_instances"] == 3
     assert f.metadata["canonical_count"] == 2  # fp_a used twice
     assert 0.4 <= f.score <= 0.6  # 1 - 1/2 = 0.5
+    assert f.fix is not None
+    assert "Consolidate to the dominant pattern" in f.fix
+    assert "deviations in:" in f.fix
+    assert "Konsolidiere" not in f.fix
 
 
 def test_three_variants_higher_score():

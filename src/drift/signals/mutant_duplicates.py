@@ -221,8 +221,8 @@ class MutantDuplicateSignal(BaseSignal):
                     common_parent = Path(*common_parts) if common_parts else anchor.file_path.parent
 
                 fix_exact = (
-                    f"Extrahiere {anchor.name}() in {common_parent.as_posix()}/shared.py. "
-                    f"{len(group)} identische Kopien (Similarity: 1.00). Aufwand: S."
+                    f"Extract {anchor.name}() into {common_parent.as_posix()}/shared.py. "
+                    f"{len(group)} identical copies (similarity: 1.00). Effort: S."
                 )
 
                 locations_desc = ", ".join(f"{fn.file_path}:{fn.start_line}" for fn in group)
@@ -372,8 +372,8 @@ class MutantDuplicateSignal(BaseSignal):
                         )
                     effort = "S" if a.file_path.parent == b.file_path.parent else "M"
                     fix_near = (
-                        f"Extrahiere {a.name}() in {near_parent.as_posix()}/shared.py. "
-                        f"Similarity: {sim:.0%}. Aufwand: {effort}."
+                        f"Extract {a.name}() into {near_parent.as_posix()}/shared.py. "
+                        f"Similarity: {sim:.0%}. Effort: {effort}."
                     )
 
                     findings.append(

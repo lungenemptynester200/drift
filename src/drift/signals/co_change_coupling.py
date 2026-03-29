@@ -261,11 +261,11 @@ class CoChangeCouplingSignal(BaseSignal):
                     file_path=path_a,
                     related_files=[path_b],
                     fix=(
-                        f"Analysiere die implizite Kopplung zwischen {path_a.name} "
-                        f"und {path_b.name}. Extrahiere gemeinsame Logik in ein "
-                        "klar benanntes Shared-Modul oder fuehre eine explizite "
-                        "Schnittstelle ein. Sichere die Trennung mit einem "
-                        "Integrationstest gegen unbeabsichtigte Mit-Aenderungen."
+                        f"Analyze the implicit coupling between {path_a.name} "
+                        f"and {path_b.name}. Extract shared logic into a clearly "
+                        "named shared module or introduce an explicit interface. "
+                        "Protect the boundary with an integration test against "
+                        "accidental co-changes."
                     ),
                     metadata={
                         "file_a": pair[0],
