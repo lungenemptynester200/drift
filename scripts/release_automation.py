@@ -3,6 +3,7 @@
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -11,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 PYPROJECT = ROOT / "pyproject.toml"
 CHANGELOG = ROOT / "CHANGELOG.md"
+PRE_PUSH_HOOK = ROOT / ".githooks" / "pre-push"
 
 
 def run_tests() -> bool:
@@ -57,6 +59,112 @@ def get_latest_version() -> tuple[int, int, int]:
     except Exception:
         pass
     return (0, 1, 0)
+
+
+def get_remote_sha(ref: str) -> str:
+    """Return remote SHA for ref or 40x0 if ref does not exist on remote."""
+    result = subprocess.run(
+        ["git", "ls-remote", "--quiet", "origin", ref],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return "0" * 40
+    for line in result.stdout.splitlines():
+        parts = line.strip().split()
+        if len(parts) != 2:
+            continue
+        sha, found_ref = parts
+        if found_ref == ref:
+            return sha
+    return result.stdout.split()[0]
+
+
+def run_pre_push_preflight(tag_name: str) -> bool:
+    """Run pre-push hook manually before pushing to fail early with clear output."""
+    if not PRE_PUSH_HOOK.exists():
+        print("ℹ No pre-push hook found. Skipping preflight.")
+        return True
+
+    shell_candidates = [
+        r"C:\Program Files\Git\bin\sh.exe",
+        r"C:\Program Files\Git\usr\bin\sh.exe",
+        shutil.which("bash"),
+        shutil.which("sh"),
+    ]
+    shell = next(
+        (c for c in shell_candidates if c and Path(c).exists()),
+        None,
+    )
+    if shell is None:
+        print("✗ Could not find sh/bash to run pre-push hook.")
+        print("  Install Git for Windows or ensure sh is in PATH.")
+        return False
+
+    local_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    local_tag = subprocess.run(
+        ["git", "rev-parse", f"{tag_name}^{{}}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    remote_head = get_remote_sha("refs/heads/master")
+    remote_tag = get_remote_sha(f"refs/tags/{tag_name}^{{}}")
+
+    hook_input = (
+        f"refs/heads/master {local_head} refs/heads/master {remote_head}\n"
+        f"refs/tags/{tag_name} {local_tag} refs/tags/{tag_name} {remote_tag}\n"
+    )
+
+    print("\n▶ Running pre-push preflight checks...")
+    preflight = subprocess.run(
+        [shell, str(PRE_PUSH_HOOK)],
+        cwd=ROOT,
+        input=hook_input.encode("utf-8"),
+        check=False,
+    )
+    if preflight.returncode != 0:
+        print("✗ Pre-push preflight failed. Fix issues above before pushing.")
+        return False
+
+    print("✓ Pre-push preflight passed")
+    return True
+
+
+def create_github_release(tag_name: str, version_no_v: str) -> bool:
+    """Create GitHub release so publish workflow (release.created) is triggered."""
+    gh_cli = shutil.which("gh")
+    if gh_cli is None:
+        print("✗ GitHub CLI (gh) not found.")
+        print("  Install gh and run 'gh auth login' once.")
+        return False
+
+    title = f"v{version_no_v}"
+    notes = f"Automated release {title} via scripts/release_automation.py"
+
+    print("\n▶ Creating GitHub release...")
+    result = subprocess.run(
+        [gh_cli, "release", "create", tag_name, "--title", title, "--notes", notes],
+        cwd=ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        print("✗ GitHub release creation failed.")
+        print("  PyPI publish will not start because workflow listens to release.created.")
+        return False
+
+    print(f"✓ GitHub release created: {tag_name}")
+    return True
 
 
 def main() -> int:
@@ -132,17 +240,22 @@ def main() -> int:
             cwd=ROOT,
             check=True,
         )
+        if not run_pre_push_preflight(next_version):
+            return 1
         subprocess.run(
-            ["git", "push", "origin", "master", "--tags"],
+            ["git", "push", "origin", "master", next_version],
             cwd=ROOT,
             check=True,
         )
+        if not create_github_release(next_version, version_no_v):
+            return 1
 
         print(f"✓ Committed: chore: Release {version_no_v}")
         print(f"✓ Tagged: {next_version}")
         print("✓ Pushed to GitHub")
+        print("✓ Triggered publish workflow via GitHub release")
         print(f"\n✅ Release {next_version} complete!")
-        print("   → GitHub Actions will publish to PyPI")
+        print("   → GitHub Actions publish.yml should now publish to PyPI")
 
         return 0
 
