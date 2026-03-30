@@ -2,6 +2,10 @@
   "version": "1.1.4",
   "date": "2026-03-30",
   "feature": "diff decision reason fields",
+  "issues": [
+    11,
+    12
+  ],
   "scope": [
     "src/drift/api.py",
     "tests/test_agent_native_cli.py",
@@ -11,7 +15,7 @@
   "validation": {
     "command": "python -m pytest tests/test_agent_native_cli.py tests/test_telemetry.py -q --maxfail=1",
     "result": "20 passed",
-    "duration_seconds": 0.69
+    "duration_seconds": 0.65
   },
   "evidence": {
     "added_fields": [
@@ -21,6 +25,7 @@
     "test_assertions_added": [
       "rejected_in_scope_blockers",
       "rejected_out_of_scope_noise_only"
-    ]
+    ],
+    "scan_alias_compatibility": "--signals alias covered by CLI test"
   }
 }
