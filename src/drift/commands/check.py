@@ -9,7 +9,6 @@ from pathlib import Path
 import click
 from rich.console import Console
 
-from drift.commands import console
 from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
 
 
@@ -81,6 +80,12 @@ from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
     help="Suppress inline code snippets in rich output.",
 )
 @click.option(
+    "--no-color",
+    is_flag=True,
+    default=False,
+    help="Disable colored CLI output.",
+)
+@click.option(
     "--baseline",
     "baseline_file",
     type=click.Path(exists=True, path_type=Path),
@@ -124,6 +129,7 @@ def check(
     since_days: int | None,
     quiet: bool,
     no_code: bool,
+    no_color: bool,
     baseline_file: Path | None,
     output_file: Path | None,
     json_shortcut: bool,
@@ -150,7 +156,12 @@ def check(
 
     effective_workers = workers if workers is not None else _DEFAULT_WORKERS
     effective_since = since_days if since_days is not None else 90
-    status_console = Console(stderr=True) if output_format != "rich" else console
+    rich_console = Console(no_color=no_color)
+    status_console = (
+        Console(stderr=True, no_color=no_color)
+        if output_format != "rich"
+        else rich_console
+    )
     status_context = (
         nullcontext() if quiet else status_console.status("[bold blue]Checking diff...")
     )
@@ -214,17 +225,17 @@ def check(
     else:
         from drift.output.rich_output import render_full_report
 
-        render_full_report(analysis, console, show_code=not no_code)
+        render_full_report(analysis, rich_console, show_code=not no_code)
 
     if not severity_gate_pass(analysis.findings, threshold):
         if not quiet:
-            console.print(
+            rich_console.print(
                 f"\n[bold red]✗ Drift check failed:[/bold red] "
                 f"findings at or above '{threshold}' severity.",
             )
         if not exit_zero:
             sys.exit(EXIT_FINDINGS_ABOVE_THRESHOLD)
     elif not quiet:
-        console.print(
+        rich_console.print(
             f"\n[bold green]✓ Drift check passed[/bold green] (threshold: {threshold}).",
         )
