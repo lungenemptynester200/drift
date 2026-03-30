@@ -1,3 +1,11 @@
+## [1.1.5] – 2026-03-30
+
+Short version: AVS dedup + MDS remediation placeholders + cache version bump. (+4 more commits)
+
+### Changed
+
+- AVS dedup + MDS remediation placeholders + cache version bump. (+4 more commits)
+
 ## [1.1.4] – 2026-03-30
 
 Short version: Add explicit diff decision reason fields.
