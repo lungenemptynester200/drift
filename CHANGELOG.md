@@ -1,22 +1,12 @@
+
+## [1.1.1] — 2026-03-30
+
+### Release
+- Version 1.1.1
 # Changelog
 
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-## [1.1.0] - 2026-03-30
-
-Short version: drift closes all key agent-workflow gaps identified through real-world agent behavior analysis — deterministic fix-first lists, noise-aware diff responses, skipped-file transparency, baseline-aware validation, and CLI contract parity.
-
-### Added
-
-- **CLI contract parity**: `drift scan --signals` is now a first-class alias for `--select`; `drift validate --baseline` accepts a baseline JSON file and returns a `progress` dict with before/after score delta and resolved/new finding counts.
-- **Noise observability**: `drift diff` responses include a `noise_context` dict (`pre_existing_count` + explanation) so agents can distinguish pre-existing findings from new regressions without manual counting.
-- **Scope diagnostics**: `drift fix-plan` with an empty `target_path` scope now returns a `path_diagnostic` field explaining whether no files matched or no findings were found; `drift scan` responses include `skipped_files` and `skipped_languages` when non-Python files were skipped.
-
-### Fixed
-
-- **Deterministic `fix_first`**: Deduplication now runs before top-N selection in both the API (`_fix_first_concise`) and JSON output (`_fix_first_list`); `related_files` in agent tasks use order-preserving dedup via `dict.fromkeys`.
-- **CLI command references**: All `drift analyze` references in `_success_criteria_for()` updated to `drift scan` to match current CLI contract; `top_signals` tie-breaking now uses finding count as secondary sort key for stable ordering.
 
 ## [0.10.10] - 2026-03-30
 
