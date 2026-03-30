@@ -1,3 +1,19 @@
+## [1.1.8] – 2026-03-30
+
+Short version: Maintenance and dependency updates.
+
+### Changed
+
+- Maintenance and dependency updates.
+
+## [1.1.8] – 2026-03-30
+
+Short version: Maintenance and dependency updates.
+
+### Changed
+
+- Maintenance and dependency updates.
+
 ## [1.1.7] – 2026-03-30
 
 Short version: Relocate docs artifacts under approved directories. (+3 more commits)

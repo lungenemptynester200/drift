@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "drift-analyzer"
-version = "1.1.7"
+version = "1.1.8"
 description = "Deterministic architectural drift detection for AI-accelerated Python repositories through cross-file coherence analysis"
 readme = "README.md"
 license = "MIT"
@@ -122,11 +122,11 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
-# Ratchet baseline: overall 68–69% as of 2026-03-24.
-# Weakest modules: cli.py (~45%), temporal signals (~55%).
+# Ratchet baseline: overall ~79% on quick suite as of 2026-03-30.
+# Weakest modules include command wrappers and optional TS/MCP paths.
 # Strongest: scoring/engine.py, signals/avs (~85%+).
 # Raise in increments of 2pp as test gaps on these modules close.
-fail_under = 65
+fail_under = 75
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
