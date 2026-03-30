@@ -1,60 +1,62 @@
-# Drift — Finds the architecture erosion that AI-generated code silently introduces
+<div align="center">
+
+# Drift
+
+**Deterministic architecture erosion detection for AI-accelerated codebases**
 
 [![CI](https://github.com/sauremilk/drift/actions/workflows/ci.yml/badge.svg)](https://github.com/sauremilk/drift/actions/workflows/ci.yml)
-[![Precision](https://img.shields.io/badge/precision-97.3%25-brightgreen)](docs/STUDY.md)
+[![Precision 97.3%](https://img.shields.io/badge/precision-97.3%25-brightgreen)](docs/STUDY.md)
 [![Coverage](https://img.shields.io/badge/coverage-78%25-brightgreen)](https://github.com/sauremilk/drift/actions/workflows/ci.yml)
-[![PyPI version](https://img.shields.io/pypi/v/drift-analyzer?cacheSeconds=300)](https://pypi.org/project/drift-analyzer/)
-[![Downloads/month](https://static.pepy.tech/badge/drift-analyzer/month)](https://pepy.tech/project/drift-analyzer)
+[![SARIF](https://img.shields.io/badge/output-SARIF-blueviolet)](https://docs.github.com/en/code-security/code-scanning)
+<br>
+[![PyPI](https://img.shields.io/pypi/v/drift-analyzer?cacheSeconds=300)](https://pypi.org/project/drift-analyzer/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com)
-[![SARIF](https://img.shields.io/badge/output-SARIF-blueviolet)](https://docs.github.com/en/code-security/code-scanning)
-[![TypeScript](https://img.shields.io/badge/TypeScript-optional-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Stars](https://img.shields.io/github/stars/sauremilk/drift?style=social)](https://github.com/sauremilk/drift)
-[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://sauremilk.github.io/drift/)
 
-> **Repo:** `sauremilk/drift` · **Package:** `drift-analyzer` · **Command:** `drift` · **Requires:** Python 3.11+
->
-> **97.3% precision** on 263 ground-truth findings across 15 repositories · deterministic · no LLM in pipeline · [full study →](docs/STUDY.md)
+97.3% precision · 15 signals · deterministic · no LLM in pipeline · [full study](docs/STUDY.md) · [docs](https://sauremilk.github.io/drift/)
 
-## Start here
+</div>
 
-Drift is a deterministic static analyzer that finds the architecture erosion AI-generated code silently introduces: pattern fragmentation, boundary violations, near-duplicate utilities, and structural hotspots that pass tests but weaken the codebase.
-
-It is designed for Python teams that want fast structural feedback in AI-accelerated repositories without adding an LLM to the analysis path.
-
-When code is produced faster than shared conventions evolve, repositories quietly accumulate problems such as:
-
-- error handling implemented several different ways inside the same service
-- API modules importing directly from database or infrastructure layers
-- AI-generated helpers copied into new files instead of reused
-- churn hotspots that keep changing because the structure is unclear
-
-### 1-minute quickstart
+---
 
 ```bash
-pip install -q drift-analyzer
+pip install drift-analyzer
 drift analyze --repo .
 ```
 
-That gives you a drift score, the hottest modules, and actionable findings in one run.
-
-### Example output
-
 ```text
-DRIFT SCORE  0.52
-Top finding: PFS 0.85  Error handling split 4 ways  at src/api/routes.py:42
-Next action: consolidate variants into one shared pattern
+╭─ drift analyze  myproject/ ──────────────────────────────────────────────────╮
+│  DRIFT SCORE  0.52  Δ -0.031 ↓ improving  │  87 files  │  AI: 34%  │  2.1s │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+  Module                  Score  Bar                   Findings  Top Signal
+  src/api/routes/          0.71  ██████████████░░░░░░       12   PFS 0.85
+  src/services/auth/       0.58  ███████████░░░░░░░░░        7   AVS 0.72
+  src/db/models/           0.41  ████████░░░░░░░░░░░░        4   MDS 0.61
+
+  ◉ PFS  0.85  Error handling split 4 ways
+               → src/api/routes.py:42
+               → Next: consolidate into shared error handler
+
+  ◉ AVS  0.72  DB import in API layer
+               → src/api/auth.py:18
+               → Next: move DB access behind service interface
 ```
+
+## Start here
+
+Drift finds the architecture erosion AI-generated code silently introduces: pattern fragmentation, boundary violations, near-duplicate utilities, and structural hotspots that pass tests but weaken the codebase.
+
+Designed for Python teams that want fast structural feedback without adding an LLM to the analysis path.
 
 ### Three good ways to start
 
-- **Try it on your repository:** start with [Quick Start](docs-site/getting-started/quickstart.md) and [Configuration](docs-site/getting-started/configuration.md).
-- **Evaluate before rollout:** review [Example Findings](docs-site/product/example-findings.md), [Trust and Evidence](docs-site/trust-evidence.md), and [Stability and Release Status](docs-site/stability.md).
-- **Work on the project itself:** use [CONTRIBUTING.md](CONTRIBUTING.md), [DEVELOPER.md](DEVELOPER.md), and [POLICY.md](POLICY.md).
+- **Run it:** [Quick Start](docs-site/getting-started/quickstart.md) and [Configuration](docs-site/getting-started/configuration.md)
+- **Evaluate:** [Example Findings](docs-site/product/example-findings.md), [Trust and Evidence](docs-site/trust-evidence.md), [Stability](docs-site/stability.md)
+- **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md), [DEVELOPER.md](DEVELOPER.md), [POLICY.md](POLICY.md)
 
-### Start report-only in CI
+### CI (start report-only, tighten later)
 
 ```yaml
 - uses: sauremilk/drift@v1
@@ -63,39 +65,16 @@ Next action: consolidate variants into one shared pattern
     upload-sarif: "true"
 ```
 
-Start report-only first. Tighten to `fail-on: high` once the team understands the signal quality in its own repo.
-
-### Try it on a demo project
-
-```bash
-git clone https://github.com/sauremilk/drift.git
-cd drift/examples/demo-project
-pip install -q drift-analyzer
-drift analyze --repo .
-```
-
-The [demo project](examples/demo-project/) contains intentional drift patterns, so you get useful findings immediately.
-
-![drift CLI demo](https://raw.githubusercontent.com/sauremilk/drift/master/demos/demo.gif)
-
 ## Vibe-Coding Workflow
 
-Drift is built for AI-assisted ("vibe-coding") sessions where an LLM agent writes most of the code and you steer.
-
-### Session start
+Built for AI-assisted sessions where an LLM writes most code and you steer.
 
 ```bash
-drift scan --repo . --max-findings 5
-```
-
-The agent reads the JSON, learns the current health baseline, and knows which patterns to avoid.
-
-### During a session
-
-```bash
-drift diff --uncommitted          # before you commit
-drift diff --staged-only          # only what's in the index
-drift diff --diff-ref main        # compare against main branch
+drift scan --repo . --max-findings 5      # session start: agent learns baseline
+drift diff --uncommitted                   # before commit
+drift diff --staged-only                   # index only
+drift diff --diff-ref main                 # compare against main
+drift check --repo . --fail-on high        # CI gate
 ```
 
 Each call returns `accept_change: true | false` with blocking reasons the agent can act on directly.
@@ -239,15 +218,16 @@ If you want example findings before integrating, start with [docs-site/product/e
 
 ```text
 ╭─ drift analyze  myproject/ ──────────────────────────────────────────────────╮
-│  DRIFT SCORE  0.52  │  87 files  │  412 functions  │  AI: 34%  │  2.1s      │
+│  DRIFT SCORE  0.52  Δ -0.031 ↓ improving  │  87 files  │  AI: 34%  │  2.1s │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+  Trend: 0.551 → 0.548 → 0.520 (3 snapshots)
 
                         Module Drift Ranking
-  Module                           Score  Findings  Top Signal
-  ─────────────────────────────────────────────────────────────
-  src/api/routes/                   0.71       12   PFS 0.85
-  src/services/auth/                0.58        7   AVS 0.72
-  src/db/models/                    0.41        4   MDS 0.61
+  Module                        Score  Bar                   Findings  Top Signal
+  ─────────────────────────────────────────────────────────────────────────────────
+  src/api/routes/                0.71  ██████████████░░░░░░       12   PFS 0.85
+  src/services/auth/             0.58  ███████████░░░░░░░░░        7   AVS 0.72
+  src/db/models/                 0.41  ████████░░░░░░░░░░░░        4   MDS 0.61
 
 ┌──┬────────┬───────┬──────────────────────────────────────┬──────────────────────┐
 │  │ Signal │ Score │ Title                                │ Location             │

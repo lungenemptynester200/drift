@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
+from drift.commands import console
 from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
 
 
@@ -80,12 +81,6 @@ from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
     help="Suppress inline code snippets in rich output.",
 )
 @click.option(
-    "--no-color",
-    is_flag=True,
-    default=False,
-    help="Disable colored CLI output.",
-)
-@click.option(
     "--baseline",
     "baseline_file",
     type=click.Path(exists=True, path_type=Path),
@@ -114,6 +109,13 @@ from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
     default=False,
     help="Emit compact JSON optimized for agent/CI summaries.",
 )
+@click.option(
+    "--no-color",
+    "no_color",
+    is_flag=True,
+    default=False,
+    help="Disable colored output (also respects NO_COLOR env variable).",
+)
 def check(
     repo: Path,
     diff_ref: str,
@@ -129,11 +131,11 @@ def check(
     since_days: int | None,
     quiet: bool,
     no_code: bool,
-    no_color: bool,
     baseline_file: Path | None,
     output_file: Path | None,
     json_shortcut: bool,
     compact_json: bool,
+    no_color: bool,
 ) -> None:
     """Check a diff for drift (CI mode)."""
     from drift.analyzer import _DEFAULT_WORKERS, analyze_diff
@@ -142,6 +144,9 @@ def check(
 
     if json_shortcut:
         output_format = "json"
+
+    # Apply --no-color: create a color-disabled console for rich output
+    effective_console = Console(no_color=True) if no_color else console
 
     cfg = DriftConfig.load(repo, config)
     if no_embeddings:
@@ -156,12 +161,7 @@ def check(
 
     effective_workers = workers if workers is not None else _DEFAULT_WORKERS
     effective_since = since_days if since_days is not None else 90
-    rich_console = Console(no_color=no_color)
-    status_console = (
-        Console(stderr=True, no_color=no_color)
-        if output_format != "rich"
-        else rich_console
-    )
+    status_console = Console(stderr=True) if output_format != "rich" else effective_console
     status_context = (
         nullcontext() if quiet else status_console.status("[bold blue]Checking diff...")
     )
@@ -225,17 +225,17 @@ def check(
     else:
         from drift.output.rich_output import render_full_report
 
-        render_full_report(analysis, rich_console, show_code=not no_code)
+        render_full_report(analysis, effective_console, show_code=not no_code)
 
     if not severity_gate_pass(analysis.findings, threshold):
         if not quiet:
-            rich_console.print(
+            effective_console.print(
                 f"\n[bold red]✗ Drift check failed:[/bold red] "
                 f"findings at or above '{threshold}' severity.",
             )
         if not exit_zero:
             sys.exit(EXIT_FINDINGS_ABOVE_THRESHOLD)
     elif not quiet:
-        rich_console.print(
+        effective_console.print(
             f"\n[bold green]✓ Drift check passed[/bold green] (threshold: {threshold}).",
         )

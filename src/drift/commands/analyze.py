@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
+from drift.commands import console
 from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
 
 
@@ -93,12 +94,6 @@ from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
     help="Suppress inline code snippets in rich output.",
 )
 @click.option(
-    "--no-color",
-    is_flag=True,
-    default=False,
-    help="Disable colored CLI output.",
-)
-@click.option(
     "--baseline",
     "baseline_file",
     type=click.Path(exists=True, path_type=Path),
@@ -134,6 +129,13 @@ from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
     default=False,
     help="Emit compact JSON optimized for agent/CI summaries.",
 )
+@click.option(
+    "--no-color",
+    "no_color",
+    is_flag=True,
+    default=False,
+    help="Disable colored output (also respects NO_COLOR env variable).",
+)
 def analyze(
     repo: Path,
     path: str | None,
@@ -152,12 +154,12 @@ def analyze(
     show_suppressed: bool,
     quiet: bool,
     no_code: bool,
-    no_color: bool,
     baseline_file: Path | None,
     output_file: Path | None,
     save_baseline_path: Path | None,
     json_shortcut: bool,
     compact_json: bool,
+    no_color: bool,
 ) -> None:
     """Analyze a repository for architectural drift."""
     from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
@@ -167,6 +169,9 @@ def analyze(
 
     if json_shortcut:
         output_format = "json"
+
+    # Apply --no-color: create a color-disabled console for rich output
+    effective_console = Console(no_color=True) if no_color else console
 
     cfg = DriftConfig.load(repo, config)
     if no_embeddings:
@@ -179,12 +184,7 @@ def analyze(
         apply_signal_filter(cfg, select_signals, ignore_signals)
 
     # For machine-readable formats, send progress to stderr so stdout stays clean
-    rich_console = Console(no_color=no_color)
-    progress_console = (
-        Console(stderr=True, no_color=no_color)
-        if output_format != "rich"
-        else rich_console
-    )
+    progress_console = Console(stderr=True) if output_format != "rich" else effective_console
 
     progress = Progress(
         TextColumn("[bold blue]{task.description}"),
@@ -270,14 +270,14 @@ def analyze(
 
         render_full_report(
             analysis,
-            rich_console,
+            effective_console,
             sort_by=sort_by,
             max_findings=max_findings,
             show_code=not no_code,
         )
 
         if show_suppressed and analysis.suppressed_count:
-            rich_console.print(
+            effective_console.print(
                 f"[dim italic]{analysis.suppressed_count} finding(s) suppressed "
                 f"via drift:ignore comments.[/dim italic]"
             )
@@ -287,14 +287,14 @@ def analyze(
 
         recs = generate_recommendations(analysis.findings)
         if recs:
-            render_recommendations(recs, rich_console)
+            render_recommendations(recs, effective_console)
 
     # Save baseline if requested (--save-baseline)
     if save_baseline_path is not None:
         from drift.baseline import save_baseline as _save_bl
 
         _save_bl(analysis, save_baseline_path)
-        rich_console.print(
+        effective_console.print(
             f"[bold green]✓ Baseline saved:[/bold green] {save_baseline_path} "
             f"({len(analysis.findings)} findings)",
         )
@@ -306,14 +306,14 @@ def analyze(
 
         if not severity_gate_pass(analysis.findings, threshold):
             if not quiet:
-                rich_console.print(
+                effective_console.print(
                     f"\n[bold red]\u2717 Drift check failed:[/bold red] "
                     f"findings at or above '{threshold}' severity.",
                 )
             if not exit_zero:
                 sys.exit(EXIT_FINDINGS_ABOVE_THRESHOLD)
         elif not quiet:
-            rich_console.print(
+            effective_console.print(
                 f"\n[bold green]\u2713 Drift check passed[/bold green] "
                 f"(threshold: {threshold}).",
             )

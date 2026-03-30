@@ -1,10 +1,7 @@
-# Drift — Architectural Drift Detection for Python
-
-**Deterministic architectural drift detection for AI-accelerated Python codebases.**
-
-Drift is a deterministic static analyzer for teams that want to catch architectural drift before it becomes normal: fragmented patterns, boundary violations, near-duplicates, and unstable hotspots that accumulate when code is optimized for local delivery but not for global coherence. It is especially useful in fast-moving, AI-accelerated repositories.
-
-> Repo: `sauremilk/drift` · Package: `drift-analyzer` · Command: `drift` · Requires: Python 3.11+
+---
+template: home.html
+title: Drift — Architecture Erosion Detection
+---
 
 ## Why teams add drift next to existing checks
 

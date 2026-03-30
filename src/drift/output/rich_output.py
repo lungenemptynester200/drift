@@ -12,6 +12,10 @@ from rich.text import Text
 
 from drift.models import Finding, ModuleScore, RepoAnalysis, Severity, SignalType
 
+# Brand accent: Deep Teal (slate/teal palette)
+_TEAL = "rgb(13,148,136)"
+_TEAL_BOLD = "bold rgb(13,148,136)"
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -158,7 +162,7 @@ def render_summary(analysis: RepoAnalysis, console: Console | None = None) -> No
             else "→"
         )
         delta_color = (
-            "green" if trend.direction == "improving"
+            _TEAL if trend.direction == "improving"
             else "red" if trend.direction == "degrading"
             else "dim"
         )
@@ -323,8 +327,8 @@ def _format_finding_detail(
 
     # Next-action line — imperative, concrete
     if f.fix:
-        text.append("  → Next: ", style=f"bold {color}")
-        text.append(f"{f.fix}\n", style=color)
+        text.append("  → Next: ", style=_TEAL_BOLD)
+        text.append(f"{f.fix}\n", style=_TEAL)
 
     # Context tags (ADR-006)
     ctx_tags = f.metadata.get("context_tags")
@@ -474,7 +478,7 @@ def render_full_report(
             "Use [bold]drift trend[/bold] to track deltas over time. "
             "Interpret single snapshots with caution.[/dim]",
             title="[dim bold]Interpretation[/dim bold]",
-            border_style="dim",
+            border_style=_TEAL,
         ),
     )
 
@@ -575,7 +579,7 @@ def render_recommendations(
     console.print(
         Panel(
             f"[bold]{len(recommendations)} Recommendations[/bold]",
-            border_style="cyan",
+            border_style=_TEAL,
         ),
     )
 

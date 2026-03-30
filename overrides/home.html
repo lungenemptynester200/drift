@@ -1,0 +1,135 @@
+{% extends "main.html" %}
+
+{% block tabs %}
+{{ super() }}
+
+<style>
+  .md-main__inner { margin: 0; }
+  .drift-hero {
+    padding: 4rem 1rem 3rem;
+    text-align: center;
+    background: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+  }
+  .drift-hero h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .drift-hero .tagline {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    max-width: 640px;
+    margin: 0 auto 1.5rem;
+    line-height: 1.5;
+  }
+  .drift-hero .stats {
+    font-family: var(--md-code-font-family);
+    font-size: 0.85rem;
+    opacity: 0.75;
+    margin-bottom: 2rem;
+  }
+  .drift-hero .cta {
+    display: inline-block;
+    padding: 0.6rem 1.8rem;
+    border: 2px solid var(--md-primary-bg-color);
+    border-radius: 4px;
+    color: var(--md-primary-bg-color);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.2s, color 0.2s;
+    margin: 0 0.5rem;
+  }
+  .drift-hero .cta:hover {
+    background: var(--md-primary-bg-color);
+    color: var(--md-primary-fg-color);
+  }
+  .drift-hero .cta.secondary {
+    border-color: rgba(255,255,255,0.5);
+    opacity: 0.85;
+  }
+  .drift-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+    max-width: 900px;
+    margin: -2rem auto 3rem;
+    padding: 0 1rem;
+  }
+  .drift-card {
+    background: var(--md-default-bg-color);
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 6px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .drift-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--md-primary-fg-color);
+  }
+  .drift-card p {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--md-default-fg-color--light);
+    margin-bottom: 0.75rem;
+  }
+  .drift-card a {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--md-primary-fg-color);
+    text-decoration: none;
+  }
+  .drift-card a:hover { text-decoration: underline; }
+  .drift-install {
+    max-width: 520px;
+    margin: 0 auto 3rem;
+    text-align: center;
+  }
+  .drift-install code {
+    display: inline-block;
+    background: var(--md-code-bg-color);
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+</style>
+
+<section class="drift-hero">
+  <h1>Drift</h1>
+  <p class="tagline">
+    Deterministic architecture erosion detection for AI-accelerated codebases.
+    Pattern fragmentation, boundary violations, near-duplicates — surfaced, scored, actionable.
+  </p>
+  <p class="stats">97.3% precision · 15 signals · Python 3.11+ · no LLM in pipeline</p>
+  <a href="getting-started/quickstart/" class="cta">Quick Start</a>
+  <a href="start-here/" class="cta secondary">Evaluate First</a>
+</section>
+
+<section class="drift-cards">
+  <div class="drift-card">
+    <h3>Quick Start</h3>
+    <p>Install, analyze your repo, and read the first findings in under two minutes.</p>
+    <a href="getting-started/quickstart/">Get started →</a>
+  </div>
+  <div class="drift-card">
+    <h3>Understand Findings</h3>
+    <p>See real-world examples of pattern fragmentation, boundary violations, and near-duplicates.</p>
+    <a href="product/example-findings/">Example findings →</a>
+  </div>
+  <div class="drift-card">
+    <h3>Configure & Roll Out</h3>
+    <p>Tune signals, set severity gates, add CI integration — start report-only, tighten later.</p>
+    <a href="getting-started/configuration/">Configure →</a>
+  </div>
+</section>
+
+<section class="drift-install">
+  <code>pip install drift-analyzer && drift analyze --repo .</code>
+</section>
+
+{% endblock %}
+
+{% block content %}{% endblock %}
