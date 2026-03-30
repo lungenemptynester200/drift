@@ -1,17 +1,12 @@
-
-## [1.1.4] — 2026-03-30
-
-### Release
-- Version 1.1.4
-
-## [1.1.3] — 2026-03-30
-
-### Release
-- Version 1.1.3
 # Changelog
 
 All notable changes to drift-analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [1.1.3] - 2026-03-30
+
+### Release
+- Patch: release metadata alignment with pre-push gate
 
 ## [1.1.2] - 2026-03-30
 
