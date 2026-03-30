@@ -30,6 +30,12 @@ from drift.api import to_json
 )
 @click.option("--max-findings", type=int, default=10, help="Maximum findings to return.")
 @click.option(
+    "--strategy",
+    type=click.Choice(["diverse", "top-severity"]),
+    default="diverse",
+    help="Finding selection strategy: diverse (default) or top-severity.",
+)
+@click.option(
     "--response-detail",
     type=click.Choice(["concise", "detailed"]),
     default="concise",
