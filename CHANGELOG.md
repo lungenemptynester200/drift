@@ -1,3 +1,17 @@
+## [1.1.11] – 2026-03-30
+
+Short version: Security-by-Default signals (MAZ, ISD, HSC) for vibe-coding detection.
+
+### Added
+
+- **MAZ** (Missing Authorization, CWE-862): detects unprotected API endpoints across FastAPI, Django, Flask, Starlette, Sanic with 18 auth decorator patterns and body-level auth detection.
+- **HSC** (Hardcoded Secret, CWE-798): detects hardcoded credentials via secret variable regex, known token prefixes (ghp_, sk-, AKIA, xoxb-), and Shannon entropy analysis.
+- **ISD** (Insecure Default, CWE-1188): detects insecure configuration defaults (DEBUG=True, ALLOWED_HOSTS=['*'], CORS_ALLOW_ALL, insecure cookies, verify=False).
+- Extended auth detection in `ast_parser` with 18 auth decorators, body-level auth checks, and `auth_mechanism` field in endpoint fingerprints.
+- SARIF output now includes `helpUri` with CWE MITRE links for security findings.
+- 67 new tests covering true-positive, true-negative, and edge-case scenarios for all three signals.
+- Signal model expanded from 19 to 22 configured signals (3 new report-only, weight=0.0).
+
 ## [1.1.10] – 2026-03-30
 
 Short version: Improve MDS/PFS/AVS signal precision from MiroFish validation.
