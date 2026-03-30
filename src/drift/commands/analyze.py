@@ -46,6 +46,7 @@ from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
 )
 @click.option(
     "--select",
+    "--signals",
     "select_signals",
     default=None,
     help="Comma-separated signal IDs to include (e.g. PFS,AVS,MDS).",
