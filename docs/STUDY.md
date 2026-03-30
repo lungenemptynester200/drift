@@ -4,6 +4,8 @@
 
 > **Feature update (2026-03-30):** The agent-native `diff` response now also includes `decision_reason_code` and `decision_reason` to provide a stable, explicit accept/reject explanation without post-processing multiple boolean flags.
 
+> **Feature update (2026-03-30):** `drift analyze` and `drift check` now accept `--no-color`, allowing colorless rich output for CI logs, terminals with forced plain rendering, and agent-driven command execution.
+
 ---
 
 ## Executive Summary

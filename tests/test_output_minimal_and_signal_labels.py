@@ -68,3 +68,39 @@ def test_signal_label_fallback_returns_real_signal_id(monkeypatch) -> None:
     monkeypatch.delitem(rich_output._SIGNAL_LABELS, SignalType.COHESION_DEFICIT, raising=False)
 
     assert _signal_label(SignalType.COHESION_DEFICIT) == SignalType.COHESION_DEFICIT.value
+
+
+def test_analyze_no_color_uses_colorless_console(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("drift.config.DriftConfig.load", lambda *_args, **_kwargs: _DummyConfig())
+    monkeypatch.setattr("drift.analyzer.analyze_repo", lambda *_args, **_kwargs: _sample_analysis())
+
+    captured: dict[str, bool] = {}
+
+    def _render_full_report(*_args, **_kwargs) -> None:
+        captured["no_color"] = _args[1].no_color
+
+    monkeypatch.setattr("drift.output.rich_output.render_full_report", _render_full_report)
+
+    runner = CliRunner()
+    result = runner.invoke(analyze, ["--repo", str(tmp_path), "--no-color"])
+
+    assert result.exit_code == 0
+    assert captured["no_color"] is True
+
+
+def test_check_no_color_uses_colorless_console(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("drift.config.DriftConfig.load", lambda *_args, **_kwargs: _DummyConfig())
+    monkeypatch.setattr("drift.analyzer.analyze_diff", lambda *_args, **_kwargs: _sample_analysis())
+
+    captured: dict[str, bool] = {}
+
+    def _render_full_report(*_args, **_kwargs) -> None:
+        captured["no_color"] = _args[1].no_color
+
+    monkeypatch.setattr("drift.output.rich_output.render_full_report", _render_full_report)
+
+    runner = CliRunner()
+    result = runner.invoke(check, ["--repo", str(tmp_path), "--no-color"])
+
+    assert result.exit_code == 0
+    assert captured["no_color"] is True

@@ -1,3 +1,11 @@
+## [1.1.7] – 2026-03-30
+
+Short version: Refresh branding and add no-color CLI output.
+
+### Changed
+
+- Refresh branding and add no-color CLI output.
+
 ## [1.1.6] – 2026-03-30
 
 Short version: Maintenance and dependency updates.
