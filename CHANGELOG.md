@@ -1,5 +1,13 @@
 ## [1.1.12] – 2026-03-30
 
+Short version: Add drift init command with built-in profiles (default, vibe-coding, strict).
+
+### Changed
+
+- Add drift init command with built-in profiles (default, vibe-coding, strict).
+
+## [1.1.12] – 2026-03-30
+
 Short version: Add `drift init` command with built-in profiles (default, vibe-coding, strict).
 
 ### Added
