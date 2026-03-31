@@ -3,7 +3,7 @@ name: Auto Create Release On Push
 on:
   push:
     branches:
-      - master
+      - main
 
 permissions:
   contents: write
