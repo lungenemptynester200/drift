@@ -1,3 +1,11 @@
+## [1.1.16] – 2026-03-31
+
+Short version: Resolve mypy type assignment error in nudge (finfo  fi). (+11 more commits)
+
+### Changed
+
+- Resolve mypy type assignment error in nudge (finfo  fi). (+11 more commits)
+
 ## [1.1.15] – 2026-03-31
 
 Short version: Add IncrementalSignalRunner with signal scope registry (Phase 3). (+1 more commits)
