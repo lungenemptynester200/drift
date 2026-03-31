@@ -1,3 +1,11 @@
+## [1.1.14] – 2026-03-31
+
+Short version: Add BaselineSnapshot and per-file SignalCache key (Phase 2 foundation). (+1 more commits)
+
+### Changed
+
+- Add BaselineSnapshot and per-file SignalCache key (Phase 2 foundation). (+1 more commits)
+
 ## [1.1.13] – 2026-03-31
 
 Short version: Release automation runs pre-push preflight after commit. (+24 more commits)
