@@ -9,6 +9,11 @@ on:
     # produced as part of release creation (not only after manual publish).
     types: [created]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag in Form vX.Y.Z für manuelle Veröffentlichung"
+        required: true
+        type: string
 
 jobs:
   validate-version:
@@ -25,7 +30,9 @@ jobs:
       - name: Check SemVer tag matches pyproject.toml
         # Fails if the tag is not vMAJOR.MINOR.PATCH or doesn't match
         # the version field in pyproject.toml. Abort before any build.
-        run: python scripts/check_version.py --tag "${{ github.ref_name }}"
+        run: |
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
+          python scripts/check_version.py --tag "$TAG"
 
       - name: Enforce release discipline
         run: python scripts/check_release_discipline.py
@@ -79,7 +86,7 @@ jobs:
         # users pinning `uses: sauremilk/drift@v1` always get the
         # latest compatible release automatically.
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
           MAJOR=$(echo "$TAG" | grep -oP '^v\d+')
           if [ -z "$MAJOR" ]; then
             echo "Tag $TAG does not match vMAJOR.MINOR.PATCH – skipping major-tag update"
