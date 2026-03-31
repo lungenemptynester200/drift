@@ -16,6 +16,8 @@
 
 > **Feature update (2026-04-01):** v1.1.15 adds the `IncrementalSignalRunner` — the core engine for incremental analysis (Phase 3). All 22 signals are now classified via `incremental_scope` (14 file-local, 4 cross-file, 4 git-dependent). The runner executes file-local signals on changed files with `exact` confidence and carries forward cross-file/git findings with `estimated` confidence. `IncrementalResult` provides score delta, direction (improving/stable/degrading), new/resolved finding diffs, and a per-signal confidence map. Helpers `_direction_for_delta` (0.005 threshold) and `_finding_key` ensure deterministic finding identity. 26 new Phase 3 tests (39 total in `tests/test_incremental.py`).
 
+> **Feature update (2026-04-02) [EXPERIMENTAL]:** v1.1.16 bundles Phases 4–6 of the Agent Navigation Gap 8D-Report. **Phase 4 — `drift_nudge` MCP tool:** New `nudge()` API returns directional feedback (improving/stable/degrading), `safe_to_commit` hardrule (blocks on critical/high new findings, delta > 0.05, or expired baseline), magnitude classification, blocking reasons, and per-signal confidence map. Registered as `drift_nudge` MCP tool with auto-detection of changed files via `git diff`. **Phase 5 — `BaselineManager`:** Singleton baseline store with git-event invalidation — HEAD commit change, stash change, or >10 files changed since baseline trigger automatic rescan. `_GitState` dataclass and `_capture_git_state()` provide git state fingerprinting. **Phase 6 — Documentation:** `DEVELOPER.md` documents the Incremental Analysis temporal model with `incremental_scope` convention; `ROADMAP.md` adds Diagnosis vs Navigation design dimension. 31 new tests in `tests/test_nudge.py` (1293 total suite).
+
 ---
 
 ## Executive Summary
