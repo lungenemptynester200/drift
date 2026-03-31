@@ -21,7 +21,7 @@ permissions:
 jobs:
   validate-tag:
     name: Validate tag & pyproject.toml consistency
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
   create-release:
     name: Create GitHub release from validated tag
     needs: validate-tag
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Create published release if missing
