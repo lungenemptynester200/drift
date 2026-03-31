@@ -133,9 +133,9 @@ def _resolve_shell() -> str | None:
 
 
 def run_pre_push_preflight(tag_name: str) -> bool:
-    """Run pre-push hook for master branch only (before tag exists) to fail early.
+    """Run pre-push hook for the current branch (before tag exists) to fail early.
 
-    Only validates the master-branch push portion of the hook. Tag-related hook
+    Only validates the branch-push portion of the hook. Tag-related hook
     gates are intentionally skipped here because the tag does not yet exist at
     preflight time; the hook will re-run automatically on actual push.
     """
@@ -156,18 +156,35 @@ def run_pre_push_preflight(tag_name: str) -> bool:
         text=True,
         check=True,
     ).stdout.strip()
-    remote_head = get_remote_sha("refs/heads/master")
+    current_branch = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    remote_head = get_remote_sha(f"refs/heads/{current_branch}")
 
-    # Only simulate master-branch push — tag does not exist yet at this point.
+    # Only simulate branch push — tag does not exist yet at this point.
     hook_input = (
-        f"refs/heads/master {local_head} refs/heads/master {remote_head}\n"
+        f"refs/heads/{current_branch} {local_head} refs/heads/{current_branch} {remote_head}\n"
     )
 
-    print("\n▶ Running pre-push preflight checks (master branch)...")
+    # Ensure the venv's Scripts/bin directory is first in PATH so that the
+    # hook's bare `python`, `pytest`, `ruff`, `drift` etc. resolve correctly
+    # on Windows (where the Windows Store alias may otherwise intercept them).
+    import os as _os
+    venv_scripts = ROOT / ".venv" / ("Scripts" if _os.name == "nt" else "bin")
+    hook_env = dict(_os.environ)
+    if venv_scripts.is_dir():
+        hook_env["PATH"] = str(venv_scripts) + _os.pathsep + hook_env.get("PATH", "")
+
+    print(f"\n▶ Running pre-push preflight checks ({current_branch} branch)...")
     preflight = subprocess.run(
         [shell, str(PRE_PUSH_HOOK)],
         cwd=ROOT,
         input=hook_input.encode("utf-8"),
+        env=hook_env,
         check=False,
     )
     if preflight.returncode != 0:
@@ -287,8 +304,15 @@ def main() -> int:
             cwd=ROOT,
             check=True,
         )
+        current_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
         subprocess.run(
-            ["git", "push", "origin", "master", next_version],
+            ["git", "push", "origin", current_branch, next_version],
             cwd=ROOT,
             check=True,
         )
