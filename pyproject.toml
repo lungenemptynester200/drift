@@ -85,6 +85,9 @@ dev = [
     "ruff>=0.4",
     "mistune>=3.0",
     "numpy>=1.26",
+    "vulture>=2.11",
+    "hypothesis>=6.100",
+    "mutmut>=2.4",
 ]
 all = [
     "drift-analyzer[typescript,embeddings,markdown,mcp,dev]",
@@ -132,6 +135,19 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.",
 ]
+
+[tool.vulture]
+min_confidence = 80
+paths = ["src/drift"]
+ignore_names = [
+    # Click-Handler und Pydantic-Felder sind nicht tot — werden dynamisch aufgerufen
+    "model_config",
+    "as_dict",
+]
+
+[tool.mutmut]
+paths_to_mutate = "src/drift/scoring/,src/drift/signals/"
+runner = "python -m pytest tests/ -x -q --timeout=30 -m 'not slow'"
 
 [tool.ruff]
 target-version = "py311"

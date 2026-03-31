@@ -103,6 +103,11 @@ jobs:
         run: |
           & $env:PYTHON_BIN -m mypy src/drift
 
+      - name: Dead code detection with vulture
+        shell: powershell
+        run: |
+          & $env:PYTHON_BIN -m vulture src/drift --min-confidence 80
+
       - name: Run tests with coverage
         shell: powershell
         run: |

@@ -159,8 +159,48 @@ drift badge      Generate shields.io badge URL
 | Ground truth | Precision/recall on labeled findings | `pytest tests/test_precision_recall.py` |
 | Smoke (slow) | Real open-source repos | `make test-all` (marker: `slow`) |
 | Mutation | Synthetic injections for recall | `python scripts/mutation_benchmark.py` |
+| Property-based | Fuzzing of config/path boundaries | `pytest tests/test_property_based.py` |
 
 **Shared fixture:** `conftest.py` → `tmp_repo` creates a complete 3-layer mini-project (services/api/db).
+
+---
+
+## Bug-Hunting Tools
+
+Three tools supplement the standard test suite. They are not required for every commit but should be run when changing parsing, config, or signal-scoring logic.
+
+### Vulture — Dead Code Detection
+
+Finds unerreichbaren Code, der durch Tests nicht erreichbar ist. Läuft automatisch im CI (test-Job, nach mypy).
+
+```bash
+python -m vulture src/drift --min-confidence 80
+```
+
+Expected output on a clean codebase: no findings. Every finding should either be fixed or added to `[tool.vulture] ignore_names` in `pyproject.toml` with a comment explaining why.
+
+### Hypothesis — Property-Based Fuzzing
+
+Tests in `tests/test_property_based.py` fuzz the system-boundary functions (config parsing, path matching, file discovery) with thousands of generated inputs. Run alongside the standard suite:
+
+```bash
+pytest tests/test_property_based.py -v
+```
+
+To extend coverage, add `@given`-decorated tests to the file. Follow the existing pattern: assert only safety properties (no unexpected exceptions), keep `max_examples ≤ 50` for CI budget.
+
+### Mutmut — Testsuite Quality Check (local only)
+
+Mutmut mutates `scoring/` and `signals/` source code and checks whether the test suite catches each mutation. It is **not run in CI** (typical runtime: 10–30 min). Run manually to evaluate test coverage quality:
+
+```bash
+python -m mutmut run
+python -m mutmut results
+```
+
+Target: mutation score ≥ 60% for `scoring/`. Results below 50% indicate tests that run but verify nothing — fix the tests, not the mutations.
+
+Configuration is in `pyproject.toml` `[tool.mutmut]`.
 
 ---
 
