@@ -17,6 +17,21 @@ Last updated: v0.8.2 (2026-03-28)
 
 ---
 
+## Design Dimensions
+
+Drift serves two complementary purposes. Contributions should be aware
+of which dimension they target:
+
+| Dimension | Purpose | Primary tools |
+|-----------|---------|---------------|
+| **Diagnosis** | Comprehensive health assessment at a point in time | `drift_scan`, `drift_diff` |
+| **Navigation** | Real-time directional feedback during editing | `drift_nudge` |
+
+Diagnosis runs all signals on the full codebase (exact). Navigation runs
+only file-local signals on changed files (exact for those, estimated for
+cross-file / git-dependent signals). Both share the same signal
+implementations — navigation is a subset view with faster feedback.
+
 ## Currently important
 
 These areas have the highest impact on drift's credibility and signal quality.

@@ -32,6 +32,38 @@ ingestion/          signals/            scoring/           output/
 
 **Data flow:** File Discovery → AST Parsing (parallel, cached) + Git History (concurrent) → 15 Signals (all scoring) → Auto-Calibration → Composite Scoring → Output Rendering
 
+### Incremental Analysis (Temporal Model)
+
+Full analysis runs all signals on every file. The **incremental path** (`drift_nudge`) re-runs
+only the signals affected by changed files:
+
+```
+BaselineManager.get()  ──┐
+                         ├──▶ IncrementalSignalRunner.run(changed_files)
+changed files            │       │
+ ├─ file-local signals ──┘       ├──▶ exact confidence
+ └─ cross-file / git ───────────▶ estimated (baseline carried)
+```
+
+Each signal declares an `incremental_scope` class variable:
+
+| Scope | Meaning | Re-run on file change? |
+|-------|---------|----------------------|
+| `file_local` | Depends only on a single file's AST | Yes — exact |
+| `cross_file` | Depends on imports / relations across files | No — estimated |
+| `git_dependent` | Depends on git history | No — estimated |
+
+**Convention:** Every new signal **MUST** declare `incremental_scope` on the class.
+Omitting it defaults to `file_local`.
+
+**Baseline management:** `BaselineManager` (singleton in `incremental.py`) caches
+baselines per repository and automatically invalidates them when:
+
+- HEAD commit changes (branch switch, new commit)
+- Stash list changes
+- More than 10 files changed since baseline creation
+- TTL expires (default 15 min)
+
 **Key directories:**
 
 | Directory | Purpose |
