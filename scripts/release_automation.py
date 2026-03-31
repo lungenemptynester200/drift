@@ -284,11 +284,17 @@ def main() -> int:
         CHANGELOG.write_text(new_section + changelog_content, "utf-8")
         print(f"✓ Updated CHANGELOG.md: {version_no_v}")
 
+        # Sync uv.lock after version bump in pyproject.toml
+        uv_bin = shutil.which("uv")
+        if uv_bin:
+            subprocess.run([uv_bin, "lock"], cwd=ROOT, check=False)
+            print("✓ Synced uv.lock")
+
         # Create release commit and tag BEFORE preflight, so the pre-push
         # hook sees the CHANGELOG update in the committed state.
         print("\n▶ Creating release commit and tag...")
         subprocess.run(
-            ["git", "add", "pyproject.toml", "CHANGELOG.md"],
+            ["git", "add", "pyproject.toml", "CHANGELOG.md", "uv.lock"],
             cwd=ROOT,
             check=True,
         )
@@ -308,7 +314,7 @@ def main() -> int:
         if not run_pre_push_preflight(next_version):
             print("▶ Rolling back release commit and tag...")
             subprocess.run(["git", "tag", "-d", next_version], cwd=ROOT, check=False)
-            subprocess.run(["git", "reset", "--soft", "HEAD~1"], cwd=ROOT, check=False)
+            subprocess.run(["git", "reset", "HEAD~1"], cwd=ROOT, check=False)
             subprocess.run(
                 ["git", "checkout", "--", "pyproject.toml", "CHANGELOG.md"],
                 cwd=ROOT, check=False,

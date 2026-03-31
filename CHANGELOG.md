@@ -1,3 +1,11 @@
+## [1.1.13] – 2026-03-31
+
+Short version: Release automation runs pre-push preflight after commit. (+24 more commits)
+
+### Changed
+
+- Release automation runs pre-push preflight after commit. (+24 more commits)
+
 ## [1.1.12] – 2026-03-30
 
 Short version: Add drift init command with built-in profiles (default, vibe-coding, strict).
