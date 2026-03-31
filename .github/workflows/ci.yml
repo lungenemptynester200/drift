@@ -18,13 +18,22 @@ jobs:
       - name: Ensure Python is available on self-hosted runner
         shell: powershell
         run: |
+          $resolved = $false
           if (Get-Command python -ErrorAction SilentlyContinue) {
             python --version
-            "PYTHON_BIN=python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } elseif (Get-Command py -ErrorAction SilentlyContinue) {
+            if ($LASTEXITCODE -eq 0) {
+              "PYTHON_BIN=python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              $resolved = $true
+            }
+          }
+          if (-not $resolved -and (Get-Command py -ErrorAction SilentlyContinue)) {
             py --version
-            "PYTHON_BIN=py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } else {
+            if ($LASTEXITCODE -eq 0) {
+              "PYTHON_BIN=py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              $resolved = $true
+            }
+          }
+          if (-not $resolved) {
             Write-Error "Neither 'python' nor 'py' is available on this self-hosted runner."
             exit 1
           }
@@ -61,13 +70,22 @@ jobs:
       - name: Ensure Python is available on self-hosted runner
         shell: powershell
         run: |
+          $resolved = $false
           if (Get-Command python -ErrorAction SilentlyContinue) {
             python --version
-            "PYTHON_BIN=python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } elseif (Get-Command py -ErrorAction SilentlyContinue) {
+            if ($LASTEXITCODE -eq 0) {
+              "PYTHON_BIN=python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              $resolved = $true
+            }
+          }
+          if (-not $resolved -and (Get-Command py -ErrorAction SilentlyContinue)) {
             py --version
-            "PYTHON_BIN=py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } else {
+            if ($LASTEXITCODE -eq 0) {
+              "PYTHON_BIN=py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              $resolved = $true
+            }
+          }
+          if (-not $resolved) {
             Write-Error "Neither 'python' nor 'py' is available on this self-hosted runner."
             exit 1
           }
