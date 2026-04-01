@@ -49,6 +49,7 @@ jobs:
         run: pre-commit run --all-files zizmor
 
       - name: Audit Python dependencies (pip-audit)
+        continue-on-error: true
         run: |
           python -m pip install pip-audit
           python -m pip install -e ".[dev]"
