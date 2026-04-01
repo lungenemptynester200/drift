@@ -19,6 +19,15 @@
 - Run `pip-audit` with `--skip-editable` in Security Hygiene to avoid false failures on local editable package metadata not present on PyPI.
 - Downgrade `pip-audit` in Security Hygiene to a non-blocking signal (`continue-on-error`) to avoid recurring CI hard-failures from local package resolution edge cases.
 
+## [1.3.3] – 2026-04-01
+
+Short version: Remove transient test artifacts from repository root. (+7 more commits)
+
+### Changed
+
+- Remove transient test artifacts from repository root. (+7 more commits)
+
+
 ## [1.3.2] – 2026-04-01
 
 Short version: Release 1.3.2. (+8 more commits)
