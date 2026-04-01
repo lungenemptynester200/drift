@@ -140,6 +140,21 @@ class TestHSCTruePositives:
         findings = signal.analyze([_make_pr()], {}, DriftConfig())
         assert len(findings) >= 1
 
+    def test_enum_member_with_real_token_still_detected(self, tmp_path: Path) -> None:
+        _write_source(
+            tmp_path, "config.py",
+            '''\
+            from enum import Enum
+
+            class CredentialExample(Enum):
+                API_TOKEN = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh"
+            ''',
+        )
+        signal = HardcodedSecretSignal(repo_path=tmp_path)
+        findings = signal.analyze([_make_pr()], {}, DriftConfig())
+        assert len(findings) == 1
+        assert findings[0].rule_id == "hardcoded_api_token"
+
 
 # ---------------------------------------------------------------------------
 # True negatives: should NOT flag these
@@ -228,6 +243,34 @@ class TestHSCTrueNegatives:
             '''\
             env = "prod"
             secret_key = f"prefix-{env}-suffix-dynamic"
+            ''',
+        )
+        signal = HardcodedSecretSignal(repo_path=tmp_path)
+        findings = signal.analyze([_make_pr()], {}, DriftConfig())
+        assert len(findings) == 0
+
+    def test_enum_symbolic_member_not_flagged(self, tmp_path: Path) -> None:
+        _write_source(
+            tmp_path, "config.py",
+            '''\
+            from enum import Enum
+
+            class SecretFields(Enum):
+                API_TOKEN = "api_token"
+                CLIENT_SECRET = "client_secret"
+            ''',
+        )
+        signal = HardcodedSecretSignal(repo_path=tmp_path)
+        findings = signal.analyze([_make_pr()], {}, DriftConfig())
+        assert len(findings) == 0
+
+    def test_schema_symbolic_constant_not_flagged(self, tmp_path: Path) -> None:
+        _write_source(
+            tmp_path, "config.py",
+            '''\
+            class ApiSchema:
+                SECRET_KEY = "secret_key"
+                API_TOKEN = "apiToken"
             ''',
         )
         signal = HardcodedSecretSignal(repo_path=tmp_path)

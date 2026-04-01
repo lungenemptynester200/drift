@@ -19,6 +19,9 @@
 **TSA-Erweiterung (2026-04-01):**
 - FP-09 ergänzt FT-1 als zusätzlicher FP-Pfad: `no_ts_layer_manifest` AND `strict_ts_rules_in_legacy_repo` → TSA-Fehlalarm.
 
+**HSC-Erweiterung (2026-04-01):**
+- FP-10 ergänzt FT-1: `secret_shaped_var_name` AND `symbolic_declaration_literal` AND `no_context_suppression` → HSC-Fehlalarm.
+
 ```
                     ┌─────────────────────────────┐
                     │ TOP: FP mit Severity ≥ MED  │
@@ -61,6 +64,8 @@
 | B8 | `same_key` | Findings haben identischen Key (rule_id, file, line, title) aus verschiedenen Passes | ✅ Dedup-Test in json_output.py | **Partiell** — Cross-Pass-Dedup fehlt |
 | B9 | `no_lib_tag` | Config hat keinen Context-Tag `library` oder kein automatisches Library-Detection | ❌ Kein Test | **Lücke** |
 | B10 | `no_context_adapt` | Signal-Thresholds sind nicht kontextabhängig (Library vs. Application) | ❌ Kein Test | **Lücke** |
+| B11 | `secret_shaped_var_name` | Variablenname enthält Secret-Keywort (`token`, `secret`, `api_key`) ohne echten Credential-Wert | ✅ HSC-Regex + Regressionstests vorhanden | **Abgedeckt** |
+| B12 | `symbolic_literal_context_lost` | Symbol-Literal in Enum/Schema-Kontext wird wie Credential-Literal behandelt | ✅ Regressionstests für Enum/Schema + Kontext-Suppression | **Mitigiert** |
 
 ### Kausale Zusammenfassung
 
@@ -72,6 +77,7 @@
 | AVS-Dedup-FP | B7 AND B8 → Dedup-Fehler → TOP | Mittel | Cross-Pass-Dedup |
 | TVS-Score-FP | SC-01 direkt → Scoring-Inflation → TOP | Hoch (TVS weight=0.13 ohne Validierung) | TVS report-only oder Confidence-Discount |
 | Library-Context-FP | B9 AND B10 → Kontext-Mismatch → TOP | Hoch bei Libraries | Automatische Kontext-Erkennung |
+| HSC-Symbol-FP | B11 AND B12 → Signal-FP → TOP | Mittel | Enum-/Schema-Kontext-Suppression im HSC-Signal |
 
 ---
 

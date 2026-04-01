@@ -36,6 +36,7 @@
 | FP-07 | MDS | Near-Duplicate FP bei Boilerplate-Code (\_\_init\_\_, Conftest) | 3 | 2 | 3 | **18** 🟢 | `strict: 0.82`, 2 FP bei 68 Samples | Boilerplate-Ausschlussliste (\_\_init\_\_.py, conftest.py, \_\_main\_\_.py) | Niedrig |
 | FP-08 | MAZ | Healthcheck/Docs-Endpoints als fehlende Authorization gemeldet | 4 | 5 | 4 | **80** 🟢 | Report-only (weight=0.0); Allow-List existiert (health, metrics, docs) | Erweiterte Allow-List pflegen; Framework-spezifische Patterns | Überwachung |
 | FP-09 | TSA | TS/JS-Regelbefunde auf Legacy-Monorepos ohne deklarierte Layer als falsche Architecture-Violations gemeldet | 5 | 4 | 6 | **120** 🟡 | Neues Signal TSA (report-only) — geringe Feldvalidierung außerhalb Testsuite | Report-only beibehalten; Präzisionsmessung über repräsentative TS-Repos vor Scoring-Promotion | Neu (2026-04-01) |
+| FP-10 | HSC | Enum-/Schema-Symboldeklarationen (`API_TOKEN = "api_token"`) als Hardcoded Secret gemeldet | 6 | 5 | 5 | **150** 🟡 | Issue #46 Repro; secret-shaped Variablennamen mit symbolischen Literalen ohne Credential-Wert | Kontext-Suppression für Enum-Member + symbolische self-mapping Literale; TP-Schutz über Prefix-Matching | Mitigiert (2026-04-01) |
 
 ---
 

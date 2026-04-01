@@ -74,6 +74,17 @@ _PLACEHOLDER_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SYMBOL_DECLARATION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_:-]{2,}$")
+
+_ENUM_BASE_NAMES: frozenset[str] = frozenset({
+    "Enum",
+    "StrEnum",
+    "IntEnum",
+    "Flag",
+    "IntFlag",
+    "ReprEnum",
+})
+
 # Safe RHS patterns: the value comes from env/config, not hardcoded.
 _SAFE_CALL_NAMES: frozenset[str] = frozenset({
     "getenv",
@@ -123,6 +134,52 @@ def _extract_string_value(node: ast.expr) -> str | None:
     return None
 
 
+def _normalize_symbol_name(name: str) -> str:
+    """Normalize symbolic names so case and separators do not matter."""
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _expr_name(node: ast.expr) -> str | None:
+    """Extract a terminal name from AST expression nodes used as class bases."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def _is_in_enum_member_context(
+    node: ast.AST,
+    parent_map: dict[ast.AST, ast.AST],
+) -> bool:
+    """Return True when assignment is in a class body inheriting from Enum."""
+    parent = parent_map.get(node)
+    while parent is not None:
+        if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            return False
+        if isinstance(parent, ast.ClassDef):
+            return any(
+                (_expr_name(base) or "") in _ENUM_BASE_NAMES
+                for base in parent.bases
+            )
+        parent = parent_map.get(parent)
+    return False
+
+
+def _is_symbol_declaration_literal(
+    var_name: str,
+    string_val: str,
+    *,
+    in_enum_member_context: bool,
+) -> bool:
+    """Suppress symbol-like literals (enum/schema constants), not credentials."""
+    if not _SYMBOL_DECLARATION_RE.match(string_val):
+        return False
+    if in_enum_member_context:
+        return True
+    return _normalize_symbol_name(var_name) == _normalize_symbol_name(string_val)
+
+
 @register_signal
 class HardcodedSecretSignal(BaseSignal):
     """Detect hardcoded secrets and credentials in source code."""
@@ -162,9 +219,15 @@ class HardcodedSecretSignal(BaseSignal):
             except (SyntaxError, OSError):
                 continue
 
+            parent_map = {
+                child: parent
+                for parent in ast.walk(tree)
+                for child in ast.iter_child_nodes(parent)
+            }
+
             for node in ast.walk(tree):
                 finding = self._check_assignment(
-                    node, pr.file_path, min_entropy, min_length
+                    node, pr.file_path, min_entropy, min_length, parent_map
                 )
                 if finding:
                     findings.append(finding)
@@ -177,25 +240,30 @@ class HardcodedSecretSignal(BaseSignal):
         file_path: Path,
         min_entropy: float,
         min_length: int,
+        parent_map: dict[ast.AST, ast.AST],
     ) -> Finding | None:
         """Check a single AST node for hardcoded secret patterns."""
         # Handle: NAME = "value"
         if isinstance(node, ast.Assign):
+            in_enum_member_context = _is_in_enum_member_context(node, parent_map)
             for target in node.targets:
                 var_name = self._extract_var_name(target)
                 if var_name and _SECRET_VAR_RE.search(var_name):
                     return self._evaluate_value(
                         node.value, var_name, file_path, node.lineno,
                         min_entropy, min_length,
+                        in_enum_member_context=in_enum_member_context,
                     )
 
         # Handle: NAME: type = "value"
         if isinstance(node, ast.AnnAssign) and node.value and node.target:
+            in_enum_member_context = _is_in_enum_member_context(node, parent_map)
             var_name = self._extract_var_name(node.target)
             if var_name and _SECRET_VAR_RE.search(var_name):
                 return self._evaluate_value(
                     node.value, var_name, file_path, node.lineno,
                     min_entropy, min_length,
+                    in_enum_member_context=in_enum_member_context,
                 )
 
         # Handle keyword arguments: func(secret_key="value")
@@ -204,6 +272,7 @@ class HardcodedSecretSignal(BaseSignal):
                     node.value, node.arg, file_path,
                     getattr(node, "lineno", 0),
                     min_entropy, min_length,
+                    in_enum_member_context=False,
                 )
 
         return None
@@ -225,6 +294,8 @@ class HardcodedSecretSignal(BaseSignal):
         lineno: int,
         min_entropy: float,
         min_length: int,
+        *,
+        in_enum_member_context: bool,
     ) -> Finding | None:
         """Evaluate whether the assigned value is a hardcoded secret."""
         if _is_safe_value(value_node):
@@ -247,6 +318,14 @@ class HardcodedSecretSignal(BaseSignal):
                     score=0.9,
                     detail=f"Value starts with known API token prefix '{prefix}'.",
                 )
+
+        # Enum/schema declaration symbols are often secret-shaped names, not secrets.
+        if _is_symbol_declaration_literal(
+            var_name,
+            string_val,
+            in_enum_member_context=in_enum_member_context,
+        ):
+            return None
 
         # Check for placeholder values.
         if _PLACEHOLDER_RE.match(string_val):
