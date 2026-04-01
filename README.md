@@ -18,6 +18,12 @@
 
 </div>
 
+AI coding tools write code that works — but doesn't fit. Error handling fragments across 4 patterns, layer boundaries erode, near-identical utilities accumulate silently. **Drift finds exactly that:** deterministic structural analysis in seconds, no LLM required.
+
+<div align="center">
+  <img src="demos/demo.gif" alt="drift analyze demo" width="720">
+</div>
+
 ---
 
 ```bash
@@ -44,89 +50,43 @@ drift analyze --repo .
                → Next: move DB access behind service interface
 ```
 
-## Start here
+## What drift catches
 
-Drift finds the architecture erosion AI-generated code silently introduces: pattern fragmentation, boundary violations, near-duplicate utilities, and structural hotspots that pass tests but weaken the codebase.
+Drift finds the structural problems AI-generated code introduces quietly: the same error handling done 4 different ways, database imports leaking into the API layer, near-identical helper functions across 6 files. Problems that pass every test but make the codebase harder to change.
 
-Designed for Python teams that want fast structural feedback without adding an LLM to the analysis path.
+### Try it now
 
-### Three good ways to start
+```bash
+drift analyze --repo .          # see your top findings
+drift explain PFS               # learn what a signal means
+drift fix-plan --repo .         # get actionable repair tasks
+```
 
-- **Run it:** [Quick Start](docs-site/getting-started/quickstart.md) and [Configuration](docs-site/getting-started/configuration.md)
-- **Evaluate:** [Example Findings](docs-site/product/example-findings.md), [Trust and Evidence](docs-site/trust-evidence.md), [Stability](docs-site/stability.md)
-- **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md), [DEVELOPER.md](DEVELOPER.md), [POLICY.md](POLICY.md)
-
-### CI (start report-only, tighten later)
+### Add to CI (start report-only)
 
 ```yaml
 - uses: sauremilk/drift@v1
   with:
-    fail-on: none
-    upload-sarif: "true"
+    fail-on: none               # report findings without blocking
+    upload-sarif: "true"        # findings appear as PR annotations
 ```
 
-## Vibe-Coding Workflow
+Once the team trusts the output, tighten: `fail-on: high`.
 
-Built for AI-assisted sessions where an LLM writes most code and you steer.
+More: [Quick Start](docs-site/getting-started/quickstart.md) · [Example Findings](docs-site/product/example-findings.md) · [Team Rollout](docs-site/getting-started/team-rollout.md)
+
+## AI-assisted workflows
+
+Drift integrates with AI coding sessions (Copilot, Cursor, Claude) and MCP-capable editors:
 
 ```bash
-drift scan --repo . --max-findings 5      # session start: agent learns baseline
-drift diff --uncommitted                   # before commit
-drift diff --staged-only                   # index only
-drift diff --diff-ref main                 # compare against main
-drift check --repo . --fail-on high        # CI gate
+drift scan --repo . --max-findings 5   # session baseline for agents
+drift diff --staged-only               # pre-commit check
+drift mcp --serve                      # MCP server for IDE integration
+drift fix-plan --repo .                # agent-friendly repair tasks
 ```
 
-Each call returns `accept_change: true | false` with blocking reasons the agent can act on directly.
-
-## MCP integration
-
-Drift can run as an MCP (Model Context Protocol) server so AI agents can call analysis tools directly over stdio.
-
-Install MCP support:
-
-```bash
-pip install drift-analyzer[mcp]
-```
-
-Start the server:
-
-```bash
-drift mcp --serve
-```
-
-Minimal VS Code setup in `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "drift": {
-      "type": "stdio",
-      "command": "drift",
-      "args": ["mcp", "--serve"]
-    }
-  }
-}
-```
-
-Common agent-native calls:
-
-```bash
-drift scan --repo .
-drift diff --staged-only
-drift validate --repo .
-drift fix-plan --repo .
-```
-
-See [Integrations](docs-site/integrations.md) and [API and Outputs](docs-site/reference/api-outputs.md) for details.
-
-### CI
-
-```yaml
-- run: drift check --repo . --fail-on high
-```
-
-Same signals, same deterministic engine — no LLM involved at analysis time.
+Full setup: [Integrations](docs-site/integrations.md) · [MCP](docs-site/integrations.md) · [Vibe-Coding Guide](examples/vibe-coding/README.md)
 
 ## Why teams use drift
 
@@ -255,35 +215,13 @@ More setup paths:
 
 If you want example findings before integrating, start with [docs-site/product/example-findings.md](docs-site/product/example-findings.md).
 
-## What you get
+## All 15 signals
 
-```text
-╭─ drift analyze  myproject/ ──────────────────────────────────────────────────╮
-│  DRIFT SCORE  0.52  Δ -0.031 ↓ improving  │  87 files  │  AI: 34%  │  2.1s │
-╰──────────────────────────────────────────────────────────────────────────────╯
-  Trend: 0.551 → 0.548 → 0.520 (3 snapshots)
+Drift scores 15 signal families — from pattern fragmentation and architecture violations to temporal volatility and co-change coupling. Each finding includes a severity, file location, and concrete next action.
 
-                        Module Drift Ranking
-  Module                        Score  Bar                   Findings  Top Signal
-  ─────────────────────────────────────────────────────────────────────────────────
-  src/api/routes/                0.71  ██████████████░░░░░░       12   PFS 0.85
-  src/services/auth/             0.58  ███████████░░░░░░░░░        7   AVS 0.72
-  src/db/models/                 0.41  ████████░░░░░░░░░░░░        4   MDS 0.61
+`drift explain <SIGNAL>` shows what any signal detects and how to fix it.
 
-┌──┬────────┬───────┬──────────────────────────────────────┬──────────────────────┐
-│  │ Signal │ Score │ Title                                │ Location             │
-├──┼────────┼───────┼──────────────────────────────────────┼──────────────────────┤
-│◉ │ PFS    │  0.85 │ Error handling split 4 ways          │ src/api/routes.py:42 │
-│◉ │ AVS    │  0.72 │ DB import in API layer               │ src/api/auth.py:18   │
-│○ │ MDS    │  0.61 │ 3 near-identical validators          │ src/utils/valid.py   │
-└──┴────────┴───────┴──────────────────────────────────────┴──────────────────────┘
-```
-
-Drift scores 15 signal families. For the full list, weights, and scoring details, see:
-
-- [Signal Reference](docs-site/algorithms/signals.md)
-- [Algorithm Deep Dive](docs-site/algorithms/deep-dive.md)
-- [Scoring Model](docs-site/algorithms/scoring.md)
+[Signal Reference](docs-site/algorithms/signals.md) · [Algorithm Deep Dive](docs-site/algorithms/deep-dive.md) · [Scoring Model](docs-site/algorithms/scoring.md)
 
 ## How drift compares
 

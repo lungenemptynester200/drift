@@ -3,7 +3,7 @@
 Status-Tracker für den öffentlichen Launch von Drift.
 Jeder Punkt hat einen Status und ggf. eine Erklärung was noch fehlt.
 
-Last updated: v0.9.0 (2026-03-29)
+Last updated: v1.3.0 (2026-04-01)
 
 ---
 
@@ -12,7 +12,7 @@ Last updated: v0.9.0 (2026-03-29)
 - [x] **Debug-Artifacts entfernt** — `action_rate_err.txt`, `diag_err.txt`, `action_rate_test.txt` sind in `.gitignore` und nicht git-tracked. Nur lokal vorhanden.
 - [x] **CI/CD Badges im README** — CI, Precision, Codecov, PyPI, Downloads, Python, License, pre-commit, SARIF, Ruff, Stars, Docs — alle vorhanden.
 - [x] **Pre-Commit Hooks** — `.pre-commit-hooks.yaml` mit `drift-check` (gate) und `drift-report` (report-only). Remote-Hook-Anleitung in README und `docs-site/integrations.md`.
-- [ ] **Demo-GIF rendern** — `demos/demo.tape` ist fertig, `demos/demo.gif` ist aktuell ein Placeholder (34 Bytes). Rendern mit: `vhs demos/demo.tape` (vhs ist installiert). README verweist bereits auf `demos/demo.gif`.
+- [x] **Demo-GIF rendern** — `demos/demo.gif` gerendert (356 KB), im README verlinkt.
 - [ ] **PyPI Release veröffentlichen** — Workflow `publish.yml` ist fertig (Trusted Publishing). Schritte:
   1. PyPI Trusted Publisher konfigurieren: https://pypi.org/manage/account/publishing/ (Repo: `sauremilk/drift`, Workflow: `publish.yml`, Environment: `pypi`)
   2. GitHub Environment `pypi` im Repo erstellen (Settings → Environments)

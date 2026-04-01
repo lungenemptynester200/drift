@@ -4,7 +4,16 @@ This roadmap communicates what the project needs most right now,
 what is accessible for new contributors, and what is explicitly
 deprioritized. It is updated with each release.
 
-Last updated: v0.8.2 (2026-03-28)
+Last updated: v1.3.0 (2026-04-01)
+
+---
+
+## Current phase: Distribution (Q2 2026)
+
+**Engineering moratorium in effect.** No new signals, no new features, no refactoring.
+Goal for this quarter: validate demand, reach ≥10 external users.
+
+Exceptions: bugfixes that block installation or first-run experience.
 
 ---
 
