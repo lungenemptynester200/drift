@@ -4,6 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 1.3.x   | :white_check_mark: |
 | 1.2.x   | :white_check_mark: |
 | 1.1.x   | :white_check_mark: |
 | 0.10.x  | :white_check_mark: |
@@ -12,7 +13,7 @@
 | 0.7.x   | :white_check_mark: |
 | < 0.7   | :x:                |
 
-Current release line: **v1.2.0**.
+Current release line: **v1.3.0**.
 
 ## Reporting a Vulnerability
 
@@ -80,6 +81,31 @@ Recommended operational posture:
 4. Treat optional dependency sets as an expanded supply-chain surface and pin
 	 versions in controlled environments.
 
+### Trust Model
+
+drift operates under the **same trust level as local shell access**:
+
+- It reads files and Git history from the local file system only.
+- It does **not** make network requests, access remote APIs, or exfiltrate data.
+- It does **not** execute any analyzed source code.
+- The user invoking drift must already have read access to the target repository.
+
+Consequently, an attacker who can modify files in the target repository already
+has equal or greater privileges than drift itself. Findings that require prior
+write access to the repository are **not considered vulnerabilities in drift**.
+
+### Out of Scope
+
+The following are explicitly **not** security issues in drift:
+
+| Category | Example | Reason |
+| --- | --- | --- |
+| Privileged file-system crafting | Malicious `.py` files causing misleading findings | Attacker already has write access — same trust boundary. |
+| Resource exhaustion on huge repos | OOM or long runtime on 100k+ file repositories | Operational concern, not a vulnerability. Use `--max-files` and resource limits. |
+| Static-analysis false positives | A signal reports a finding that is not a real problem | Signal-quality issue, not a security issue. Report via [false-positive template](https://github.com/sauremilk/drift/issues/new?template=false_positive.yml). |
+| Secret-scanning baseline entries | `.secrets.baseline` contains hashed fixture secrets | Intentional test fixtures; hashes are not reversible. |
+| Git history tampering | Rewritten Git history producing different drift results | drift trusts `git log` output; history integrity is the repository owner's responsibility. |
+
 ### Security Regression Evidence
 
 Security-relevant behavior is covered by dedicated tests, including:
@@ -90,6 +116,36 @@ Security-relevant behavior is covered by dedicated tests, including:
 	file handling)
 - `tests/test_cache_resilience.py` (corrupted cache and concurrent access
 	resilience)
+
+## Security Scanning
+
+This repository uses `detect-secrets` with a tracked baseline
+(`.secrets.baseline`) and exclusion reference (`.detect-secrets.cfg`).
+
+- CI enforcement: `.github/workflows/security-hygiene.yml` runs
+	blocking gates for `detect-private-key`, `detect-secrets`, and
+	`actionlint` via pre-commit.
+- Advisory (non-blocking) checks in the same workflow: `shellcheck` and
+	`zizmor`.
+- Local enforcement: run the same pre-commit hooks before pushing changes.
+
+Local commands:
+
+```bash
+pip install pre-commit==4.2.0 detect-secrets==1.5.0
+pre-commit run --all-files detect-private-key
+pre-commit run --all-files detect-secrets
+pre-commit run --all-files shellcheck
+pre-commit run --all-files actionlint
+pre-commit run --all-files zizmor
+```
+
+Baseline refresh flow (after intentional fixture/doc updates):
+
+```bash
+detect-secrets scan --all-files --baseline .secrets.baseline
+detect-secrets audit .secrets.baseline
+```
 
 ## Disclosure Policy
 
