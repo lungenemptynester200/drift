@@ -868,9 +868,70 @@ def fix_plan(
                 return result
             tasks = [t for t in tasks if t.signal_type == resolved]
 
+        finding_id_diagnostic: str | None = None
+        finding_id_message: str | None = None
+        finding_id_suggested_fix: dict[str, Any] | None = None
+
         # Filter by finding_id
         if finding_id:
-            tasks = [t for t in tasks if t.id == finding_id]
+            id_matches = [t for t in tasks if t.id == finding_id]
+            if id_matches:
+                tasks = id_matches
+            else:
+                # Convenience: accept rule_id/signal-style IDs from scan output.
+                resolved_finding = resolve_signal(finding_id)
+                if resolved_finding is not None:
+                    rule_matches = [t for t in tasks if t.signal_type == resolved_finding]
+                    if rule_matches:
+                        tasks = rule_matches
+                        finding_id_diagnostic = "finding_id_interpreted_as_rule_id"
+                        finding_id_message = (
+                            f"'{finding_id}' was interpreted as rule_id/signal and matched "
+                            f"{len(tasks)} task(s)."
+                        )
+                    else:
+                        available_rule_ids = sorted({t.signal_type.value for t in tasks})
+                        available_task_ids = [t.id for t in tasks]
+                        tasks = []
+                        finding_id_diagnostic = "finding_id_no_match"
+                        finding_id_message = (
+                            f"No findings matched finding_id '{finding_id}' in the current scope."
+                        )
+                        finding_id_suggested_fix = {
+                            "action": (
+                                "Use a task id from fix-plan output, or pass a valid "
+                                "rule_id/signal "
+                                "from scan output."
+                            ),
+                            "expected_formats": ["<signal>-<hash>", "<rule_id>", "<signal_abbrev>"],
+                            "valid_task_ids_sample": available_task_ids[:10],
+                            "valid_rule_ids": available_rule_ids,
+                            "example_call": {
+                                "tool": "drift_fix_plan",
+                                "params": {"finding_id": "explainability_deficit", "max_tasks": 1},
+                            },
+                        }
+                else:
+                    available_rule_ids = sorted({t.signal_type.value for t in tasks})
+                    available_task_ids = [t.id for t in tasks]
+                    tasks = []
+                    finding_id_diagnostic = "finding_id_no_match"
+                    finding_id_message = (
+                        f"No findings matched finding_id '{finding_id}' in the current scope."
+                    )
+                    finding_id_suggested_fix = {
+                        "action": (
+                            "Use a task id from fix-plan output, or pass a valid rule_id/signal "
+                            "from scan output."
+                        ),
+                        "expected_formats": ["<signal>-<hash>", "<rule_id>", "<signal_abbrev>"],
+                        "valid_task_ids_sample": available_task_ids[:10],
+                        "valid_rule_ids": available_rule_ids,
+                        "example_call": {
+                            "tool": "drift_fix_plan",
+                            "params": {"finding_id": "explainability_deficit", "max_tasks": 1},
+                        },
+                    }
 
         # Filter by automation fitness
         fit_levels = {"low": 0, "medium": 1, "high": 2}
@@ -920,6 +981,9 @@ def fix_plan(
             total_available=len(tasks),
             skipped_low_automation=skipped_low,
             path_diagnostic=path_diagnostic,
+            finding_id_diagnostic=finding_id_diagnostic,
+            message=finding_id_message,
+            suggested_fix=finding_id_suggested_fix,
             recommended_next_actions=next_actions,
             agent_instruction=(
                 "After each file change, call drift_diff(uncommitted=True) "
@@ -928,6 +992,16 @@ def fix_plan(
         )
         if warnings:
             result["warnings"] = warnings
+        if finding_id and finding_id_message and not finding_id_suggested_fix:
+            result.setdefault("warnings", []).append(finding_id_message)
+        if finding_id and finding_id_suggested_fix:
+            result.setdefault("invalid_fields", []).append(
+                {
+                    "field": "finding_id",
+                    "value": finding_id,
+                    "reason": "No task id or rule_id match in current scope",
+                }
+            )
         _emit_api_telemetry(
             tool_name="api.fix_plan",
             params=params,

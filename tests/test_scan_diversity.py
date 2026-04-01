@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from drift.api import _diverse_findings, _format_scan_response, scan
-from drift.models import Severity, SignalType
+from drift.models import AgentTask, Severity, SignalType
 
 
 def _make_finding(
@@ -486,3 +486,91 @@ class TestAgentInstruction:
         result = diff(Path("."), uncommitted=True)
         assert "agent_instruction" in result
         assert isinstance(result["agent_instruction"], str)
+
+
+class TestFixPlanFindingIdDiagnostics:
+    def test_fix_plan_finding_id_accepts_rule_id(self, monkeypatch):
+        """finding_id may use rule_id/signal style from scan output."""
+        import drift.analyzer as analyzer_module
+        import drift.api as api_module
+        from drift.api import fix_plan
+        from drift.config import DriftConfig
+
+        analysis = SimpleNamespace(
+            findings=[],
+            drift_score=0.41,
+            severity=Severity.MEDIUM,
+            total_files=5,
+            total_functions=10,
+            ai_attributed_ratio=0.0,
+            trend=None,
+        )
+        tasks = [
+            AgentTask(
+                id="eds-1111111111",
+                signal_type=SignalType.EXPLAINABILITY_DEFICIT,
+                severity=Severity.HIGH,
+                priority=1,
+                title="Improve explainability",
+                description="desc",
+                action="action",
+            ),
+        ]
+
+        monkeypatch.setattr(DriftConfig, "load", staticmethod(lambda *a, **kw: object()))
+        monkeypatch.setattr(analyzer_module, "analyze_repo", lambda *a, **kw: analysis)
+        monkeypatch.setattr(
+            "drift.output.agent_tasks.analysis_to_agent_tasks",
+            lambda *a, **kw: tasks,
+        )
+        monkeypatch.setattr(api_module, "_emit_api_telemetry", lambda **kw: None)
+
+        result = fix_plan(Path("."), finding_id="explainability_deficit", max_tasks=5)
+
+        assert result["task_count"] == 1
+        assert result["tasks"][0]["id"] == "eds-1111111111"
+        assert result["finding_id_diagnostic"] == "finding_id_interpreted_as_rule_id"
+
+    def test_fix_plan_finding_id_no_match_returns_diagnostics(self, monkeypatch):
+        """Unknown finding_id should not fail silently and should include hints."""
+        import drift.analyzer as analyzer_module
+        import drift.api as api_module
+        from drift.api import fix_plan
+        from drift.config import DriftConfig
+
+        analysis = SimpleNamespace(
+            findings=[],
+            drift_score=0.41,
+            severity=Severity.MEDIUM,
+            total_files=5,
+            total_functions=10,
+            ai_attributed_ratio=0.0,
+            trend=None,
+        )
+        tasks = [
+            AgentTask(
+                id="eds-1111111111",
+                signal_type=SignalType.EXPLAINABILITY_DEFICIT,
+                severity=Severity.HIGH,
+                priority=1,
+                title="Improve explainability",
+                description="desc",
+                action="action",
+            ),
+        ]
+
+        monkeypatch.setattr(DriftConfig, "load", staticmethod(lambda *a, **kw: object()))
+        monkeypatch.setattr(analyzer_module, "analyze_repo", lambda *a, **kw: analysis)
+        monkeypatch.setattr(
+            "drift.output.agent_tasks.analysis_to_agent_tasks",
+            lambda *a, **kw: tasks,
+        )
+        monkeypatch.setattr(api_module, "_emit_api_telemetry", lambda **kw: None)
+
+        result = fix_plan(Path("."), finding_id="not-a-real-id", max_tasks=5)
+
+        assert result["task_count"] == 0
+        assert result["finding_id_diagnostic"] == "finding_id_no_match"
+        assert result["suggested_fix"] is not None
+        assert "valid_task_ids_sample" in result["suggested_fix"]
+        assert result["invalid_fields"][0]["field"] == "finding_id"

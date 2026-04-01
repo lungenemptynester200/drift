@@ -19,7 +19,14 @@ from drift.api import to_json
     default=Path("."),
     help="Path to the repository root.",
 )
-@click.option("--finding-id", default=None, help="Target a specific finding/task id.")
+@click.option(
+    "--finding-id",
+    default=None,
+    help=(
+        "Target a specific finding by task id (e.g. pfs-abc123) "
+        "or rule_id (e.g. explainability_deficit)."
+    ),
+)
 @click.option("--signal", default=None, help="Filter to a specific signal (e.g. PFS).")
 @click.option("--max-tasks", type=int, default=5, help="Maximum tasks to return.")
 @click.option(
