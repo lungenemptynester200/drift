@@ -21,11 +21,11 @@
 
 ## [1.3.5] – 2026-04-01
 
-Short version: Satisfy ruff exception-chaining rule in mcp command. (+1 more commits)
+Short version: Maintenance and dependency updates.
 
 ### Changed
 
-- Satisfy ruff exception-chaining rule in mcp command. (+1 more commits)
+- Maintenance and dependency updates.
 
 
 ## [1.3.4] – 2026-04-01
