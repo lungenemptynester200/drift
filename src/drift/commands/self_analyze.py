@@ -40,6 +40,10 @@ def self_analyze(since: int, output_format: str) -> None:
         )
 
     cfg = DriftConfig.load(drift_root)
+    # CI self-checks can leave temporary launch virtualenvs in the repo root.
+    # Exclude them so self-analysis reflects drift's code, not tool artifacts.
+    if "**/.tmp_*venv*/**" not in cfg.exclude:
+        cfg.exclude.append("**/.tmp_*venv*/**")
 
     info_console = Console(stderr=True) if output_format != "rich" else console
     info_console.print(f"[bold]drift self[/bold] — analyzing drift's own codebase ({drift_root})")

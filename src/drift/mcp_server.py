@@ -376,7 +376,7 @@ def _annotation_to_string(annotation: Any) -> str:
     if isinstance(annotation, str):
         return annotation
     name = getattr(annotation, "__name__", None)
-    if name is not None:
+    if isinstance(name, str):
         return name
     return str(annotation).replace("typing.", "")
 

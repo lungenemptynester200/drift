@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import datetime
+from pathlib import Path
+
 from click.testing import CliRunner
 
 from drift.cli import main
+from drift.config import DriftConfig
 from drift.errors import DriftSystemError
+from drift.models import RepoAnalysis
 
 
 class TestSelfCommand:
@@ -40,3 +45,26 @@ class TestSelfCommand:
 
         assert isinstance(result.exception, DriftSystemError)
         assert result.exception.code == "DRIFT-2001"
+
+    def test_self_excludes_tmp_launch_venv_dirs(self, monkeypatch) -> None:
+        captured_excludes: list[str] = []
+
+        def _fake_load(cls, repo_path, config_path=None):
+            return DriftConfig(include=["**/*.py"], exclude=[])
+
+        def _fake_analyze(repo_path, cfg, since_days=90):
+            captured_excludes.extend(cfg.exclude)
+            return RepoAnalysis(
+                repo_path=Path(repo_path),
+                analyzed_at=datetime.datetime.now(datetime.UTC),
+                drift_score=0.1,
+            )
+
+        monkeypatch.setattr(DriftConfig, "load", classmethod(_fake_load))
+        monkeypatch.setattr("drift.analyzer.analyze_repo", _fake_analyze)
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["self", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert "**/.tmp_*venv*/**" in captured_excludes
