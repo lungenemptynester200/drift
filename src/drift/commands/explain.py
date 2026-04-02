@@ -645,17 +645,18 @@ def explain(
     # Check for error code first (DRIFT-XXXX pattern)
     if key.upper().startswith("DRIFT-"):
         if output is not None:
-            from drift.errors import ERROR_REGISTRY
+            from drift.errors import ERROR_REGISTRY, format_error_info_for_explain
 
             info_err = ERROR_REGISTRY.get(key.upper())
             if info_err is None:
                 click.echo(f"Unknown error code: {key}", err=True)
                 raise SystemExit(1)
+            summary, why, action = format_error_info_for_explain(key.upper(), info_err)
             err_data = {
                 "code": info_err.code,
-                "summary": info_err.summary,
-                "why": info_err.why,
-                "action": info_err.action,
+                "summary": summary,
+                "why": why,
+                "action": action,
                 "category": info_err.category,
             }
             output.write_text(
@@ -757,7 +758,7 @@ def _print_error_code_detail(code: str) -> None:
     from rich.panel import Panel
     from rich.text import Text
 
-    from drift.errors import ERROR_REGISTRY
+    from drift.errors import ERROR_REGISTRY, format_error_info_for_explain
 
     info = ERROR_REGISTRY.get(code)
     if info is None:
@@ -767,6 +768,8 @@ def _print_error_code_detail(code: str) -> None:
             f"[dim]Known codes: {codes}[/dim]"
         )
         raise SystemExit(1)
+
+    summary, why, action = format_error_info_for_explain(code, info)
 
     category_label = {
         "user": "User Error (exit code 1)",
@@ -779,13 +782,13 @@ def _print_error_code_detail(code: str) -> None:
     body.append(f"Category: {category_label.get(info.category, info.category)}\n\n", style="dim")
 
     body.append("What happens\n", style="bold underline")
-    body.append(f"  {info.summary}\n\n")
+    body.append(f"  {summary}\n\n")
 
     body.append("Why\n", style="bold underline")
-    body.append(f"  {info.why}\n\n")
+    body.append(f"  {why}\n\n")
 
     body.append("What to do\n", style="bold underline")
-    body.append(f"  {info.action}\n", style="green")
+    body.append(f"  {action}\n", style="green")
 
     console.print(Panel(body, border_style="yellow", title=f"[bold]Error: {code}[/bold]"))
 

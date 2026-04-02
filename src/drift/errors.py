@@ -147,6 +147,33 @@ ERROR_REGISTRY: dict[str, ErrorInfo] = {
 }
 
 
+# Example interpolation values used by `drift explain DRIFT-XXXX`.
+# They document a concrete remediation path without requiring runtime context.
+ERROR_EXPLAIN_DEFAULTS: dict[str, dict[str, str]] = {
+    "DRIFT-2010": {"package": "mcp", "extra": "mcp"},
+}
+
+
+def _format_template_with_defaults(template: str, defaults: dict[str, str]) -> str:
+    """Best-effort interpolation for explain docs with graceful fallback."""
+    if not defaults:
+        return template
+    try:
+        return template.format(**defaults)
+    except KeyError:
+        return template
+
+
+def format_error_info_for_explain(code: str, info: ErrorInfo) -> tuple[str, str, str]:
+    """Return explain-ready summary/why/action fields for an error code."""
+    defaults = ERROR_EXPLAIN_DEFAULTS.get(code, {})
+    return (
+        _format_template_with_defaults(info.summary, defaults),
+        _format_template_with_defaults(info.why, defaults),
+        _format_template_with_defaults(info.action, defaults),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Exception hierarchy
 # ---------------------------------------------------------------------------

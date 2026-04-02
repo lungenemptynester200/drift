@@ -306,6 +306,17 @@ class TestMcpServerHelpers:
         # Should still return valid JSON without crashing
         assert isinstance(result, dict)
 
+    def test_drift_explain_error_code_interpolates_defaults(self) -> None:
+        """drift_explain resolves DRIFT-2010 template placeholders."""
+        import json as _json
+
+        from drift.mcp_server import drift_explain
+
+        result = _json.loads(drift_explain("DRIFT-2010"))
+        assert result["error_code"] == "DRIFT-2010"
+        assert result["summary"] == "Optional dependency missing: mcp"
+        assert result["action"] == "Install with: pip install drift-analyzer[mcp]"
+
 
 # ---------------------------------------------------------------------------
 # CLI command — smoke tests

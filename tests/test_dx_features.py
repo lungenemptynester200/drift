@@ -250,6 +250,14 @@ class TestExplainErrorCodes:
         assert result.exit_code == 0
         assert "System Error" in result.output
 
+    def test_explain_drift_2010_interpolates_placeholder_defaults(self, cli_runner) -> None:
+        result = cli_runner.invoke(explain, ["DRIFT-2010"])
+        assert result.exit_code == 0
+        assert "{package}" not in result.output
+        assert "{extra}" not in result.output
+        assert "Optional dependency missing: mcp" in result.output
+        assert "pip install drift-analyzer[mcp]" in result.output
+
 
 # ---------------------------------------------------------------------------
 # Error code registry
@@ -373,6 +381,21 @@ class TestExplainOutput:
         assert result.exit_code == 0
         data = json.loads(out.read_text(encoding="utf-8"))
         assert data["code"] == "DRIFT-1001"
+
+    def test_explain_error_code_output_file_interpolates_defaults(
+        self,
+        cli_runner,
+        tmp_path,
+    ) -> None:
+        import json
+
+        out = tmp_path / "error_2010.json"
+        result = cli_runner.invoke(explain, ["DRIFT-2010", "-o", str(out)])
+        assert result.exit_code == 0
+        data = json.loads(out.read_text(encoding="utf-8"))
+        assert data["code"] == "DRIFT-2010"
+        assert "{extra}" not in data["action"]
+        assert data["action"] == "Install with: pip install drift-analyzer[mcp]"
 
 
 # ---------------------------------------------------------------------------

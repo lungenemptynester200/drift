@@ -800,17 +800,18 @@ def explain(topic: str, *, repo_path: str | Path | None = None) -> dict[str, Any
             return result
 
         # Try as error code
-        from drift.errors import ERROR_REGISTRY
+        from drift.errors import ERROR_REGISTRY, format_error_info_for_explain
 
         if topic.upper() in ERROR_REGISTRY:
             err = ERROR_REGISTRY[topic.upper()]
+            summary, why, action = format_error_info_for_explain(topic.upper(), err)
             result = _base_response(
                 type="error_code",
                 error_code=err.code,
                 category=err.category,
-                summary=err.summary,
-                why=err.why,
-                action=err.action,
+                summary=summary,
+                why=why,
+                action=action,
             )
             _emit_api_telemetry(
                 tool_name="api.explain",
