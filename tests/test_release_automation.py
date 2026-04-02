@@ -59,6 +59,28 @@ Short version: Correct retry section.
     assert "Corrected release." in updated
 
 
+def test_upsert_release_section_with_only_unreleased_keeps_unreleased_on_top():
+    module = _load_module()
+    changelog = """## [Unreleased]
+
+### Fixed
+- Keep me first
+"""
+    new_section = """## [1.5.0] – 2026-04-02
+
+Short version: First release.
+
+### Changed
+- Initial release.
+
+"""
+
+    updated = module._upsert_release_section(changelog, "1.5.0", new_section)
+
+    assert updated.index("## [Unreleased]") < updated.index("## [1.5.0] – 2026-04-02")
+    assert "Keep me first" in updated
+
+
 def test_ensure_clean_worktree_rejects_dirty_repo(monkeypatch):
     module = _load_module()
 
@@ -82,6 +104,44 @@ def test_ensure_release_target_available_rejects_existing_local_tag(monkeypatch)
     monkeypatch.setattr(module, "_tag_exists", _fake_tag_exists)
 
     assert module.ensure_release_target_available("v1.5.0") is False
+
+
+def test_get_latest_version_falls_back_to_local_tags_when_remote_unreachable(monkeypatch):
+    module = _load_module()
+
+    def _fake_run(args, **_kwargs):
+        if args[:4] == ["git", "ls-remote", "--tags", "--refs"]:
+            raise subprocess.CalledProcessError(returncode=1, cmd=args)
+        if args == ["git", "tag", "-l", "v*.*.*"]:
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="v1.4.1\nv1.5.0\n")
+        return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
+
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    assert module.get_latest_version() == (1, 5, 0)
+
+
+def test_commit_messages_since_last_tag_falls_back_to_head_when_base_tag_missing(monkeypatch):
+    module = _load_module()
+    seen_ranges: list[str] = []
+
+    def _fake_run(args, **_kwargs):
+        if args[:2] != ["git", "log"]:
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="")
+
+        seen_ranges.append(args[2])
+        if args[2] == "v9.9.9..HEAD":
+            return subprocess.CompletedProcess(args=args, returncode=128, stdout="")
+        if args[2] == "HEAD":
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="fix: x\x1e")
+        return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
+
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    messages = module._commit_messages_since_last_tag("v9.9.9")
+
+    assert seen_ranges == ["v9.9.9..HEAD", "HEAD"]
+    assert messages == ["fix: x"]
 
 
 def test_rollback_local_release_state_restores_commit_tag_and_files(monkeypatch):

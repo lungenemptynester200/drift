@@ -112,6 +112,8 @@ def _upsert_release_section(changelog_content: str, version_no_v: str, new_secti
             before = changelog_content[:insert_at].rstrip("\n")
             after = changelog_content[insert_at:].lstrip("\n")
             return before + "\n\n" + new_section + ("\n" + after if after else "")
+        # Keep Unreleased at top when no historic release section exists yet.
+        return changelog_content.rstrip("\n") + "\n\n" + new_section
 
     # 3) Fallback: prepend release section.
     return new_section + changelog_content
@@ -220,44 +222,74 @@ def get_latest_version() -> tuple[int, int, int]:
                 major, minor, patch = match.groups()
                 return (int(major), int(minor), int(patch))
     except Exception:
-        pass
-    return (0, 1, 0)
+        print("⚠ Could not query origin tags. Falling back to local tags.")
 
-
-def _commit_messages_since_last_tag() -> list[str]:
-    """Return commit messages since the latest reachable tag (fallback: full history)."""
-    try:
-        last_tag = subprocess.run(
-            ["git", "describe", "--tags", "--abbrev=0"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        range_spec = f"{last_tag}..HEAD"
-    except subprocess.CalledProcessError:
-        range_spec = "HEAD"
-
-    result = subprocess.run(
-        ["git", "log", range_spec, "--no-merges", "--format=%B%x1e"],
+    local = subprocess.run(
+        ["git", "tag", "-l", "v*.*.*"],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
-    if result.returncode != 0:
-        return []
+    local_tags = re.findall(r"^v\d+\.\d+\.\d+$", local.stdout, re.MULTILINE)
+    if local_tags:
+        local_tags = sorted(
+            local_tags,
+            key=lambda t: tuple(int(x) for x in t.lstrip("v").split(".")),
+        )
+        match = re.match(r"v(\d+)\.(\d+)\.(\d+)", local_tags[-1])
+        if match:
+            major, minor, patch = match.groups()
+            print("⚠ Using latest local tag for version calculation.")
+            return (int(major), int(minor), int(patch))
 
-    return [msg.strip() for msg in result.stdout.split("\x1e") if msg.strip()]
+    print("⚠ No semantic version tags found. Defaulting to 0.1.0 baseline.")
+    return (0, 1, 0)
 
 
-def _next_version_from_commits(current: tuple[int, int, int]) -> tuple[tuple[int, int, int], str]:
+def _commit_messages_since_last_tag(base_tag: str | None = None) -> list[str]:
+    """Return commit messages since the latest reachable tag (fallback: full history)."""
+    candidates: list[str] = []
+    if base_tag:
+        candidates.append(f"{base_tag}..HEAD")
+    else:
+        try:
+            last_tag = subprocess.run(
+                ["git", "describe", "--tags", "--abbrev=0"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            candidates.append(f"{last_tag}..HEAD")
+        except subprocess.CalledProcessError:
+            pass
+
+    candidates.append("HEAD")
+
+    for range_spec in candidates:
+        result = subprocess.run(
+            ["git", "log", range_spec, "--no-merges", "--format=%B%x1e"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return [msg.strip() for msg in result.stdout.split("\x1e") if msg.strip()]
+
+    return []
+
+
+def _next_version_from_commits(
+    current: tuple[int, int, int], base_tag: str | None = None
+) -> tuple[tuple[int, int, int], str]:
     """Calculate next version using conventional commit signals.
 
     Priority: breaking > feat > fix > patch default.
     """
     major, minor, patch = current
-    messages = _commit_messages_since_last_tag()
+    messages = _commit_messages_since_last_tag(base_tag)
     if not messages:
         return (major, minor, patch + 1), "patch (default: no commits since last tag)"
 
@@ -424,7 +456,8 @@ def main() -> int:
 
     # Calculate next version
     current = get_latest_version()
-    next_tuple, bump_reason = _next_version_from_commits(current)
+    current_tag = f"v{current[0]}.{current[1]}.{current[2]}"
+    next_tuple, bump_reason = _next_version_from_commits(current, current_tag)
     next_version = f"v{next_tuple[0]}.{next_tuple[1]}.{next_tuple[2]}"
 
     print(f"\n▶ Next version: {next_version}")
