@@ -423,10 +423,13 @@ class TestWarningsSuppression:
                 and node.func.attr == "filterwarnings"
             ):
                 for kw in node.keywords:
-                    if kw.arg == "category":
-                        if isinstance(kw.value, ast.Name) and kw.value.id == "SyntaxWarning":
-                            found = True
-                            break
+                    if (
+                        kw.arg == "category"
+                        and isinstance(kw.value, ast.Name)
+                        and kw.value.id == "SyntaxWarning"
+                    ):
+                        found = True
+                        break
                 if not found:
                     for arg in node.args:
                         if isinstance(arg, ast.Name) and arg.id == "SyntaxWarning":
