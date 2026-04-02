@@ -188,6 +188,13 @@ def analyze(
     if json_shortcut:
         output_format = "json"
 
+    # For machine-readable formats, redirect the shared console to stderr
+    # so stray console.print() calls never pollute the JSON payload.  (#75, #77)
+    if output_format != "rich":
+        import drift.commands as _cmds
+
+        _cmds.console = Console(stderr=True)
+
     # Apply --no-color: create a color-disabled console for rich output
     effective_console = Console(no_color=True) if no_color else console
 

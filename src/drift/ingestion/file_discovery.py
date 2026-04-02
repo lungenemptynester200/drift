@@ -105,6 +105,8 @@ def discover_files(
             "**/.nox/**",
             "**/dist/**",
             "**/build/**",
+            "**/site-packages/**",
+            "**/.pixi/**",
         ]
 
     files: list[FileInfo] = []

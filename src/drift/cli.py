@@ -26,9 +26,11 @@ from drift.errors import (
     DriftError,
 )
 
-# Suppress SyntaxWarnings from third-party libraries (e.g. passlib) that
-# pollute stderr and confuse agents parsing CLI output.  (#72)
-warnings.filterwarnings("ignore", category=SyntaxWarning, module=r"passlib\..*")
+# Suppress all SyntaxWarnings: drift is a static analyzer that parses
+# arbitrary source code — SyntaxWarnings from ast.parse / compile or from
+# third-party libraries (e.g. passlib) pollute stderr and break
+# deterministic JSON parsing by agents.  (#72, #75, #77)
+warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 
 def _machine_error_enabled(argv: list[str] | None = None) -> bool:

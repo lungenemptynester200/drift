@@ -120,7 +120,8 @@ def diff(
     if not bl_path.exists():
         console.print(
             f"[bold red]✗ Baseline not found:[/bold red] {bl_path}\n"
-            f"  Run [bold]drift baseline save[/bold] first."
+            f"  Run this command first, then re-run baseline diff:\n"
+            f"  [bold]drift baseline save --output {bl_path}[/bold]"
         )
         raise SystemExit(1)
 

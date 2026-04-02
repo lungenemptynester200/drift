@@ -105,7 +105,7 @@ class TestDiscoverFiles:
         assert "app.py" in paths
         assert all("venv" not in p for p in paths)
 
-    @pytest.mark.parametrize("env_dir", [".conda", ".env", ".nox", ".tox"])
+    @pytest.mark.parametrize("env_dir", [".conda", ".env", ".nox", ".tox", ".pixi"])
     def test_exclude_environment_directories(self, tmp_path, env_dir):
         (tmp_path / "app.py").write_text("x = 1")
         env_lib = tmp_path / env_dir / "lib"
@@ -117,6 +117,18 @@ class TestDiscoverFiles:
 
         assert "app.py" in paths
         assert all(not p.startswith(f"{env_dir}/") for p in paths)
+
+    def test_exclude_site_packages(self, tmp_path):
+        (tmp_path / "app.py").write_text("x = 1")
+        sp = tmp_path / "lib" / "python3.11" / "site-packages" / "pkg"
+        sp.mkdir(parents=True)
+        (sp / "mod.py").write_text("vendored = True")
+
+        files = discover_files(tmp_path)
+        paths = {f.path.as_posix() for f in files}
+
+        assert "app.py" in paths
+        assert all("site-packages" not in p for p in paths)
 
     def test_exclude_pycache(self, tmp_path):
         (tmp_path / "app.py").write_text("x = 1")
