@@ -130,6 +130,24 @@ def test_separate_modules_separate_findings():
     assert len(findings) == 2
 
 
+def test_identical_decorator_patterns_no_finding():
+    # 5 FastAPI-style routes with identical fingerprints (same structure, different
+    # paths/methods) must produce no PFS finding — structural similarity here comes
+    # from the framework pattern, not from fragmented logic.
+    fp = {
+        "has_error_handling": False,
+        "has_auth": False,
+        "auth_mechanism": None,
+        "return_patterns": ["jsonify"],
+    }
+    patterns = [
+        _make_pattern(PatternCategory.API_ENDPOINT, "routes", f"route_{i}", fp)
+        for i in range(5)
+    ]
+    findings = PatternFragmentationSignal().analyze(_wrap(patterns), {}, None)
+    assert findings == [], "Identical decorator patterns must not produce any PFS finding"
+
+
 def test_score_aggregation():
     findings = [
         Finding(

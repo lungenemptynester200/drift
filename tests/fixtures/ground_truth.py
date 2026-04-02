@@ -837,6 +837,47 @@ PFS_CONFOUNDER_TN = GroundTruthFixture(
     ],
 )
 
+PFS_DECORATOR_TN = GroundTruthFixture(
+    name="pfs_decorator_tn",
+    description="FastAPI-style decorated routes with consistent structure → should NOT fire PFS",
+    kind=FixtureKind.CONFOUNDER,
+    files={
+        "routes/__init__.py": "",
+        "routes/users.py": """\
+            @app.get("/users")
+            def list_users():
+                return jsonify(users_service.get_all())
+
+            @app.post("/users")
+            def create_user():
+                return jsonify(users_service.create(request.json))
+
+            @app.get("/users/{user_id}")
+            def get_user(user_id):
+                return jsonify(users_service.get(user_id))
+
+            @app.put("/users/{user_id}")
+            def update_user(user_id):
+                return jsonify(users_service.update(user_id, request.json))
+
+            @app.delete("/users/{user_id}")
+            def delete_user(user_id):
+                return jsonify(users_service.delete(user_id))
+        """,
+    },
+    expected=[
+        ExpectedFinding(
+            signal_type=SignalType.PATTERN_FRAGMENTATION,
+            file_path="routes/",
+            should_detect=False,
+            description=(
+                "Consistent decorator pattern (framework routes) "
+                "must not produce a PFS finding"
+            ),
+        ),
+    ],
+)
+
 
 # ── Additional MDS fixtures ──────────────────────────────────────────────
 
@@ -2093,6 +2134,7 @@ ALL_FIXTURES: list[GroundTruthFixture] = [
     PFS_LOGGING_TP,
     PFS_BOUNDARY_TP,
     PFS_CONFOUNDER_TN,
+    PFS_DECORATOR_TN,
     AVS_TRUE_POSITIVE,
     AVS_TRUE_NEGATIVE,
     AVS_CIRCULAR_TP,
