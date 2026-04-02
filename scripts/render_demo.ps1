@@ -1,14 +1,21 @@
 $ErrorActionPreference = "Stop"
 
-if (-not (Get-Command vhs -ErrorAction SilentlyContinue)) {
-    Write-Error "Vhs was not found in PATH. Install it first (e.g. 'scoop install vhs')."
-}
+$repoRoot = Join-Path $PSScriptRoot ".."
 
-Push-Location (Join-Path $PSScriptRoot "..")
-try {
-    vhs demos/demo.tape
-    Write-Host "Demo rendered to demos/demo.gif"
-}
-finally {
-    Pop-Location
+if (Get-Command vhs -ErrorAction SilentlyContinue) {
+    Push-Location $repoRoot
+    try {
+        vhs demos/demo.tape
+        Write-Host "Demo rendered to demos/demo.gif"
+    }
+    finally {
+        Pop-Location
+    }
+} else {
+    Write-Host "vhs not found in PATH — falling back to Python (Pillow) renderer."
+    $python = Join-Path $repoRoot ".venv\Scripts\python.exe"
+    if (-not (Test-Path $python)) {
+        $python = "python"
+    }
+    & $python (Join-Path $repoRoot "scripts\make_demo_gif.py")
 }
