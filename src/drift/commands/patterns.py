@@ -62,7 +62,7 @@ def patterns(
     output_format: str,
     output_file: Path | None,
 ) -> None:
-    """Show discovered code patterns in the repository.
+    """Show repository pattern findings and support machine-readable exports.
 
     Use ``target_path`` to scope discovery to a specific subdirectory and
     ``output_format`` / ``output_file`` for machine-readable exports.
