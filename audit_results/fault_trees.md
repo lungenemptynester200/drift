@@ -184,6 +184,13 @@
 | File-Limit-Stille | E3 AND (E5 OR E7) → TOP | Niedrig (nur bei >10k-Repos) | Warnung: „Limit erreicht, N Dateien übersprungen" |
 | BOM-Crash | E4 → kein Output → TOP | Niedrig (Windows/Editor-spezifisch) | BOM-Strip in tomllib-Loader |
 
+### FT-3 Delta (2026-04-02)
+
+| Pfad | Neue/aktualisierte Basic Events | Ursache | Maßnahme | Rest-Risiko |
+|------|---------------------------------|---------|----------|-------------|
+| Vendor-Env-Ingestion | `E8: vendor_env_discovered` | Discovery berücksichtigte `site-packages`/`.pixi` als analysierbare Projektdateien | Default-Excludes in Discovery erweitert (`**/site-packages/**`, `**/.pixi/**`) | Niedrig, solange Excludes in Defaults und Tests stabil bleiben |
+| SARIF-Lokalisierung | `E9: invalid_or_missing_start_line` | Findings ohne gültige Zeilenregion verlieren in SARIF-Consumern Lokalisierbarkeit | `start_line` in DCA aus erstem Dead-Symbol gesetzt; SARIF schreibt Region nur bei `start_line > 0` | Niedrig, aber weiterhin auf neue Signalpfade zu prüfen |
+
 ### Gemeinsamer Verursacher
 
 **E5 (no_degradation_output)** und **E7 (no_coverage_metric)** sind an **allen drei Pfaden** beteiligt. Ihre Beseitigung würde die Entdeckbarkeit (D) für alle Degradation-Fehlermodi (DG-01 bis DG-03) von 7–8 auf 3–4 senken und die RPNs um ~50% reduzieren.

@@ -86,6 +86,8 @@
 | DG-03 | File-Discovery | max_discovery_files=10.000 → bei Monorepos stille Beschneidung | 6 | 3 | 8 | **144** 🟡 | Guardrail existiert; boundary-test bestanden (31 passed) | Warnung wenn Limit erreicht: „Analyse auf N/M Dateien beschränkt" | Teilweise |
 | DG-04 | BOM-Bug | pyproject.toml mit UTF-8 BOM → DRIFT-1002, Analyse bricht ab | 8 | 2 | 3 | **48** 🟢 | Bekannter Bug (repo_memory); `tomllib.loads` scheitert an BOM | `codecs.open()` oder BOM-Strip vor Parsing | **Bekannt, unfixed** |
 | DG-05 | Cache | Parse-Cache-Invalidierung bei Branch-Wechsel → veraltete Ergebnisse | 5 | 2 | 8 | **80** 🟢 | Cache invalidiert via Git-Commit-Hash; Edge Case: uncommitted changes | Cache-Key um Datei-mtime erweitern; oder Cache-Clear-Option | Niedrig |
+| DG-06 | File-Discovery | Virtuelle Umgebungen (`site-packages`, `.pixi`) werden als Projektdateien entdeckt → Noise + Laufzeitbudget-Drift | 6 | 5 | 5 | **150** 🟡 | Repro in CI-Realitäts-/Self-Analyse-Läufen; Discovery-Default ohne Vendor-Env-Ausschlüsse | Standard-Excludes um `**/site-packages/**` und `**/.pixi/**` erweitern; Budget-Regressionstest beibehalten | **Mitigiert (2026-04-02)** |
+| DG-07 | SARIF-Output | Findings mit `startLine=0/None` werden von SARIF-Consumern partiell verworfen → Befunde verlieren Handlungsfähigkeit | 6 | 4 | 6 | **144** 🟡 | Issue-88-Repro: fehlende/ungültige Region-Zeile in SARIF bei DCA | DCA setzt `start_line` auf erste tote Symbolzeile; SARIF-Writer schreibt Region nur bei `start_line > 0` | **Mitigiert (2026-04-02)** |
 
 ---
 
