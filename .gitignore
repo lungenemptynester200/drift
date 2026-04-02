@@ -16,6 +16,16 @@ build/
 .coverage
 coverage.xml
 htmlcov/
+.tmp_*venv*/
+.tox/
+.nox/
+.pyre/
+.pytype/
+.cache/
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
+Desktop.ini
 site/
 drift_score.json
 work_artifacts/
