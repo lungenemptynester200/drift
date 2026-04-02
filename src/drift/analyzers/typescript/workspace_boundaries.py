@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from drift.analyzers.typescript._path_utils import relative_to_or_none
+
 _IGNORED_PATH_PARTS = {
     "node_modules",
     "__pycache__",
@@ -68,10 +70,9 @@ def discover_workspace_package_roots(repo_path: Path) -> list[Path]:
 
     normalized_roots: set[Path] = set()
     for package_root in package_roots:
-        try:
-            normalized_roots.add(package_root.relative_to(repo_path.resolve()))
-        except ValueError:
-            continue
+        relative_root = relative_to_or_none(package_root, repo_path.resolve())
+        if relative_root is not None:
+            normalized_roots.add(relative_root)
 
     return sorted(normalized_roots, key=lambda p: p.as_posix())
 
@@ -92,11 +93,8 @@ def assign_ts_sources_to_workspace_packages(repo_path: Path) -> dict[str, str]:
     for source_path in _iter_ts_sources(repo_path):
         candidates: list[Path] = []
         for package_root in package_roots:
-            try:
-                source_path.relative_to(package_root)
-            except ValueError:
-                continue
-            candidates.append(package_root)
+            if relative_to_or_none(source_path, package_root) is not None:
+                candidates.append(package_root)
 
         if not candidates:
             assignments[source_path.as_posix()] = "root"

@@ -6,6 +6,8 @@
 
 > **Feature update (2026-04-02):** Enterprise governance hardening adds deterministic collaboration scaffolding for contributors: issue/discussion templates, devcontainer bootstrap, and root-level policy metadata (`CITATION.cff`, `.pre-commit-config.yaml`). Verification evidence is stored in `benchmark_results/v2.0.0_feature_evidence.json` and `audit_results/enterprise_governance_validation_2026-04-02.md`, with targeted coverage in `tests/test_enterprise_governance_assets.py`.
 
+> **Triage note (2026-04-02):** Exact duplicates under `benchmarks/corpus/src/myapp/` (for example `service_a.py` and `service_b.py`) are intentional benchmark fixtures for MDS/PFS validation and must not be treated as actionable architectural drift in production code. During operational triage, classify these findings as benchmark-context false positives for product decisions unless the benchmark corpus itself is under review.
+
 > **Feature update (2026-04-02):** v1.4.0 adds deterministic `baseline_refresh_reason` to `nudge()` responses for baseline refresh transparency. Emitted reason codes are `baseline_missing`, `ttl_expired`, `git_head_changed`, `stash_changed`, and `changed_file_threshold`, with targeted coverage in `tests/test_nudge.py` and feature evidence in `benchmark_results/v1.4.0_feature_evidence.json`.
 
 > **Feature update (2026-03-30):** The agent-native `diff` response now also includes `decision_reason_code` and `decision_reason` to provide a stable, explicit accept/reject explanation without post-processing multiple boolean flags.

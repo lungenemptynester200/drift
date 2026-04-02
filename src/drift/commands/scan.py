@@ -8,7 +8,7 @@ import click
 
 from drift.api import scan as api_scan
 from drift.api import to_json
-from drift.errors import DriftConfigError
+from drift.commands._io import _write_output_file
 
 
 @click.command("scan")
@@ -65,16 +65,6 @@ def scan(
     output: Path | None,
 ) -> None:
     """Run the agent-native scan workflow and emit structured JSON."""
-
-    def _write_output_file(content: str, destination: Path) -> None:
-        try:
-            destination.write_text(content + "\n", encoding="utf-8")
-        except OSError as exc:
-            raise DriftConfigError(
-                "DRIFT-2003",
-                path=str(destination),
-                reason=str(exc),
-            ) from exc
 
     signals = [item.strip() for item in select.split(",") if item.strip()] if select else None
     result = api_scan(

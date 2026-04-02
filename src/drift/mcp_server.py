@@ -174,20 +174,27 @@ def drift_scan(
     """
     from drift.api import scan
 
-    signal_list = (
-        [s.strip() for s in signals.split(",") if s.strip()]
-        if signals
-        else None
-    )
-    result = scan(
-        path,
-        target_path=target_path,
-        since_days=since_days,
-        signals=signal_list,
-        max_findings=max_findings,
-        response_detail=response_detail,
-    )
-    return json.dumps(result, default=str)
+    try:
+        signal_list = (
+            [s.strip() for s in signals.split(",") if s.strip()]
+            if signals
+            else None
+        )
+        result = scan(
+            path,
+            target_path=target_path,
+            since_days=since_days,
+            signals=signal_list,
+            max_findings=max_findings,
+            response_detail=response_detail,
+        )
+        return json.dumps(result, default=str)
+    except Exception as exc:
+        from drift.api_helpers import _error_response
+
+        error = _error_response("DRIFT-5001", str(exc), recoverable=True)
+        error["tool"] = "drift_scan"
+        return json.dumps(error, default=str)
 
 
 @mcp.tool()

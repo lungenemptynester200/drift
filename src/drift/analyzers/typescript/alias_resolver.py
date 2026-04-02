@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from drift.analyzers.typescript._path_utils import relative_to_or_none
+
 _ALLOWED_EXTENSIONS = {".ts", ".tsx"}
 logger = logging.getLogger("drift")
 
@@ -212,9 +214,8 @@ def resolve_tsconfig_alias_import(
             if resolved is None:
                 continue
 
-            try:
-                return resolved.relative_to(repo_path)
-            except ValueError:
-                continue
+            relative = relative_to_or_none(resolved, repo_path)
+            if relative is not None:
+                return relative
 
     return None

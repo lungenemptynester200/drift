@@ -10,7 +10,8 @@ import click
 from rich.console import Console
 
 from drift.commands import console
-from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD, DriftConfigError
+from drift.commands._io import _write_output_file
+from drift.errors import EXIT_FINDINGS_ABOVE_THRESHOLD
 
 
 @click.command()
@@ -152,16 +153,6 @@ def check(
     from drift.analyzer import _DEFAULT_WORKERS, analyze_diff
     from drift.config import DriftConfig
     from drift.scoring.engine import severity_gate_pass
-
-    def _write_output_file(content: str, destination: Path) -> None:
-        try:
-            destination.write_text(content + "\n", encoding="utf-8")
-        except OSError as exc:
-            raise DriftConfigError(
-                "DRIFT-2003",
-                path=str(destination),
-                reason=str(exc),
-            ) from exc
 
     def _recompute_summary() -> None:
         from drift.scoring.engine import (

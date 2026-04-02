@@ -391,6 +391,34 @@ def diff(
         if uncommitted and staged_only:
             raise ValueError("Options 'uncommitted' and 'staged_only' are mutually exclusive.")
 
+        if not uncommitted and not staged_only and diff_ref.startswith("--"):
+            result = _error_response(
+                "DRIFT-1003",
+                f"Invalid diff_ref value: '{diff_ref}' looks like a command-line option.",
+                invalid_fields=[{
+                    "field": "diff_ref",
+                    "value": diff_ref,
+                    "reason": (
+                        "Must be a valid git ref (e.g. HEAD~1, main, a1b2c3d),"
+                        " not an option flag"
+                    ),
+                }],
+                suggested_fix={
+                    "action": "Pass a valid git ref",
+                    "example_call": {"tool": "drift_diff", "params": {"diff_ref": "HEAD~1"}},
+                },
+            )
+            _emit_api_telemetry(
+                tool_name="api.diff",
+                params=params,
+                status="ok",
+                elapsed_ms=elapsed_ms(),
+                result=result,
+                error=None,
+                repo_root=repo_path,
+            )
+            return result
+
         diff_mode = "ref"
         if staged_only:
             diff_mode = "staged"
@@ -922,7 +950,38 @@ def fix_plan(
         "target_path": target_path,
     }
 
+    _valid_automation_fit = {"low", "medium", "high"}
+
     try:
+        if automation_fit_min is not None and automation_fit_min not in _valid_automation_fit:
+            result = _error_response(
+                "DRIFT-1003",
+                f"Unknown automation_fit_min value: '{automation_fit_min}'",
+                invalid_fields=[{
+                    "field": "automation_fit_min",
+                    "value": automation_fit_min,
+                    "reason": "Must be one of: low, medium, high",
+                }],
+                suggested_fix={
+                    "action": "Use a valid automation fitness level",
+                    "valid_values": sorted(_valid_automation_fit),
+                    "example_call": {
+                        "tool": "drift_fix_plan",
+                        "params": {"automation_fit_min": "medium"},
+                    },
+                },
+            )
+            _emit_api_telemetry(
+                tool_name="api.fix_plan",
+                params=params,
+                status="ok",
+                elapsed_ms=elapsed_ms(),
+                result=result,
+                error=None,
+                repo_root=repo_path,
+            )
+            return result
+
         cfg = DriftConfig.load(repo_path)
 
         # Validate target_path existence
@@ -1284,16 +1343,19 @@ def validate(
                 direction = "improved" if delta < -0.01 else (
                     "degraded" if delta > 0.01 else "stable"
                 )
+                resolved_count = max(0, len(bl_fingerprints) - len(known_findings))
+                known_count = len(known_findings)
                 result["progress"] = {
                     "baseline_file": str(baseline_file),
                     "score_before": round(score_before, 4),
                     "score_after": round(score_after, 4),
                     "delta": delta,
                     "direction": direction,
-                    "resolved_count": len(known_findings),
+                    "resolved_count": resolved_count,
+                    "known_count": known_count,
                     "new_count": len(new_findings),
                     "progress_summary": (
-                        f"{len(known_findings)} finding(s) resolved, "
+                        f"{resolved_count} finding(s) resolved, "
                         f"{len(new_findings)} new, "
                         f"score {'improved' if delta < 0 else 'worsened'} by "
                         f"{abs(delta):.4f}"
