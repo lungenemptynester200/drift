@@ -85,7 +85,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:AGENT_TOOLSDIRECTORY | Out-Null
           Write-Host "Using isolated tool cache: $env:AGENT_TOOLSDIRECTORY"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
