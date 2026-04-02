@@ -3,91 +3,65 @@ name: drift-release
 description: "Complete release workflow: Validate → Version → Changelog → Commit → Tag → Publish. Use after successful code changes to src/drift/. Single command: `python scripts/release_automation.py --full-release`"
 ---
 
-# 🚀 Drift Release Skill
+# Drift Release Skill (python-semantic-release)
 
-Never forget to release code changes to `src/drift/` again.
+Releases are **fully automated** via `python-semantic-release` (PSR) in CI.
 
 ## Executive Summary
 
-**ONE command does EVERYTHING:**
+**Agents no longer need to run a manual release command.**
 
-```bash
-python scripts/release_automation.py --full-release
-```
-
-Runs tests → Calculates version → Updates files → Creates release → Publishes to PyPI.
+Workflow: `.github/workflows/release.yml` runs on every push to `main`.
+PSR parses conventional commits and handles version bump, changelog, tag, GitHub Release, and PyPI publish.
 
 ---
 
 ## When to Use This Skill
 
-✅ **ALWAYS use this after:**
+✅ **Know this after:**
 - Feature complete (`feat: ...` commit)
 - Bug fixed (`fix: ...` commit)
 - Breaking change (`BREAKING: ...` commit)
 - All tests pass
 - Code committed + pushed to main
 
-❌ **DO NOT use if:**
-- Tests still failing
-- Code not committed yet
-- Change is pure refactor (no user impact)
-- Code still incomplete
+The CI release workflow handles everything else automatically.
 
 ---
 
-## The Two-Step Release Process
+## What Agents Must Do
 
-### Step 1: Run the Command
+### Step 1: Use Conventional Commits
+
+```
+feat: add new detector for X       →  MINOR bump (0.X.0)
+fix: false alarm in signal Y       →  PATCH bump (0.0.X)
+BREAKING: remove deprecated API    →  MAJOR bump (X.0.0)
+```
+
+### Step 2: Run Tests Locally
 
 ```bash
-cd c:\Users\mickg\PWBS\drift
-python scripts/release_automation.py --full-release
+python -m pytest tests/ --tb=short --ignore=tests/test_smoke.py -q --maxfail=1
 ```
 
-### Step 2: Wait for Output
+### Step 3: Commit and Push
 
-You should see:
-
-```
-============================================================
-Drift Release Automation
-============================================================
-▶ Running quick tests...
-✓ Tests passed
-
-▶ Next version: v0.11.0
-✓ Updated pyproject.toml: version = 0.11.0
-✓ Updated CHANGELOG.md with version 0.11.0
-
-▶ Staging changes for version 0.11.0...
-Creating release commit...
-✓ Committed: chore: Release 0.11.0 — update version and changelog
-▶ Creating git tag v0.11.0...
-✓ Tagged: v0.11.0
-Pushing to origin/main and tags...
-✓ Pushed main and v0.11.0
-
-✅ Release v0.11.0 complete!
-   → GitHub release will be created automatically
-   → PyPI publication via .github/workflows/publish.yml (triggered by tag)
-```
+PSR in CI handles the rest after push to main.
 
 ---
 
-## Semantic Versioning Happens Automatically
+## What PSR Does Automatically (in CI)
 
-The script reads your **commit messages** and bumps the version:
-
-```
-Your commit message       Version bump       Result
-─────────────────────────────────────────────────────
-feat: new detector     →  MINOR (0.X.0)  →  v0.9.0
-fix: false alarm       →  PATCH (0.0.X)  →  v0.8.3  
-BREAKING: remove sig   →  MAJOR (X.0.0)  →  v1.0.0
-```
-
-**Priority:** BREAKING > feat > fix
+1. **Commits analyzed** — from last tag to HEAD
+2. **Version calculated** — based on commit types (feat → minor, fix → patch, BREAKING → major)
+3. **Files updated:**
+   - `pyproject.toml` (version field)
+   - `CHANGELOG.md` (new entry)
+4. **Release commit created** — `chore: Release X.Y.Z`
+5. **Git tag created** — `vX.Y.Z`
+6. **GitHub Release created**
+7. **Built and published to PyPI**
 
 ---
 
@@ -95,43 +69,22 @@ BREAKING: remove sig   →  MAJOR (X.0.0)  →  v1.0.0
 
 | Problem | Solution |
 |---------|----------|
-| Tests fail during release | Fix code first. Release will abort automatically. Do NOT skip tests. |
-| Version looks wrong | Check your recent commit messages use correct prefixes (feat:, fix:, BREAKING:) |
-| Tag already exists | Manually increment patch: v0.11.0 → v0.11.1 and retry |
-| Can't push | Check GitHub write access. May need credential refresh. |
-| PyPI publish fails | GitHub release is created OK. PyPI will retry automatically within 24h. |
-
----
-
-## What Happens Under the Hood
-
-1. **Tests run** — aborts if any fail
-2. **Git history analyzed** — from last tag to HEAD
-3. **Version calculated** — based on commit message patterns
-4. **Files updated:**
-   - `pyproject.toml` (version field)
-   - `CHANGELOG.md` (new entry from commits)
-5. **Commits created:**
-   - Code changes (if any)
-   - Release commit (version + changelog)
-6. **Git tag created** — e.g., v0.11.0
-7. **Push to GitHub** — main + tag
-8. **GitHub Actions triggered** (`.github/workflows/publish.yml`)
-   - Builds dist package
-   - Validates version consistency
-   - Publishes to PyPI
+| No release after push | Check commit messages use conventional prefixes (feat:, fix:, BREAKING:). Commits without these don't trigger releases. |
+| Tests fail during release | Fix code first. PSR only runs when there are releasable commits. |
+| Version looks wrong | Verify recent commit messages. PSR Priority: BREAKING > feat > fix. |
+| PyPI publish fails | GitHub Release exists. Re-trigger with `publish.yml` workflow_dispatch. |
+| CI unavailable | Local fallback: `python scripts/release_automation.py --full-release` |
 
 ---
 
 ## Important Details
 
-- 🔐 **PyPI token:** Already configured in GitHub Actions (no manual setup needed)
-- 📊 **CHANGELOG:** Auto-generated from commit history
-- 🏷️ **Git tags:** Enable GitHub to create releases automatically
-- ⚙️ **Workflows:** `.github/workflows/publish.yml` handles PyPI publication
-- 📝 **Tagging format:** Always `vX.Y.Z` (e.g., v0.10.3)
-
----
+- 🔐 **PyPI token:** `PYPI_RELEASE` secret in GitHub environment `pypi`
+- 📊 **CHANGELOG:** Auto-generated by PSR from commit history
+- 🏷️ **Tag format:** `vX.Y.Z` (e.g., v1.4.2)
+- ⚙️ **Workflow:** `.github/workflows/release.yml`
+- 📝 **Config:** `pyproject.toml` → `[tool.semantic_release]`
+- 🔄 **Major tag:** `v1` auto-updated to latest patch (e.g., v1 → v1.4.3)
 
 ## DO NOT DO THIS
 

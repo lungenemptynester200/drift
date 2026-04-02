@@ -1,85 +1,53 @@
+---
 applyTo: "src/drift/**"
-description: "Release-Automatisierung für Drift-Analyzer: Nach Code-Änderungen automatisch Tests, Versionierung, Versionshistorie, Commit, GitHub Release und PyPI-Publikation durchführen. Verwendet Semantic Versioning basierend auf Commit-Nachricht (fix→patch, feat→minor, BREAKING→major)."
+description: "Release-Automatisierung via python-semantic-release (PSR) in CI. Agenten verwenden Conventional Commits — CI übernimmt Version, Changelog, Tag, Release, PyPI."
+---
 
-# Drift Release Automation
+# Drift Release Automation (python-semantic-release)
 
-Wenn du Code-Änderungen an `src/drift/` durchführst, führe nach erfolgreichem Test automatisch den Complete-Release-Workflow aus:
+Releases werden vollständig durch `python-semantic-release` in CI verwaltet.
+Workflow: `.github/workflows/release.yml` — läuft bei jedem Push auf `main`.
 
-## Workflow nach jeder Code-Änderung
+## Was Agenten tun müssen
 
-1. **Tests validieren** (Quick-Test, ohne `--run-slow`)
+1. **Conventional Commits verwenden** — PSR leitet Version aus Commit-Messages ab:
+   - `feat: ...` → MINOR (0.x.0)
+   - `fix: ...` → PATCH (0.0.x)
+   - `BREAKING CHANGE: ...` / `BREAKING: ...` → MAJOR (x.0.0)
+2. **Tests lokal ausführen** vor dem Commit:
    ```bash
    python -m pytest tests/ --tb=short --ignore=tests/test_smoke.py -q --maxfail=1
    ```
-   - Verhindert defekten Code in Releases
-     - `feat: ...` → MINOR erhöhen  
-     - `BREAKING: ...` oder `BREAKING CHANGE` → MAJOR erhöhen
-   - Priorität: MAJOR > MINOR > PATCH
-   - Standard: PATCH (wenn keine der Keywords vorhanden)
+3. **Committen** — PSR übernimmt nach Push alles Weitere
 
-3. **CHANGELOG.md aktualisieren**
-   - Neue Sektion am Top mit neuer Version
-   - Format:
-     ```markdown
-     ## [vX.Y.Z] — YYYY-MM-DD
-     
-     ### Added
-     - [feat] ...
-     
-     ### Fixed
-     - [fix] ...
-     
-     ### Changed
-     - [change] ...
-     ```
-   - Im Abschnitt "Commits seit letztem Release": nutze urspr. Commit-Nachrichten
+## Was PSR automatisch macht (in CI)
 
-4. **Committen** (zwei Commits empfohlen)
-   ```bash
-   git add src/drift/ tests/  # Falls Tests aktualisiert wurden
-   git commit -m "feat/fix/change: [deine ursprüngliche Message]"
-   
-   git add CHANGELOG.md pyproject.toml  # Version + History
-   git commit -m "chore: Release vX.Y.Z — update version and changelog"
-   ```
+1. Analysiert Commits seit letztem Tag
+2. Berechnet nächste Version (SemVer)
+3. Aktualisiert `pyproject.toml` + `CHANGELOG.md`
+4. Erstellt Release-Commit (`chore: Release X.Y.Z`)
+5. Erstellt Git Tag (`vX.Y.Z`)
+6. Erstellt GitHub Release
+7. Baut Wheel + Sdist → publiziert zu PyPI
 
-5. **Git Tag erstellen + pushen**
-   ```bash
-   git tag -a vX.Y.Z -m "Release vX.Y.Z"
-   git push origin main --tags
-   ```
-   - Dies triggert `.github/workflows/publish.yml` automatisch
-   - Workflow: validiert Tag ↔ pyproject.toml → baut Dist → published zu PyPI
+## Lokaler Fallback (nur bei CI-Ausfall)
 
-6. **Warte auf GitHub Actions**
+```bash
+python scripts/release_automation.py --full-release
+```
 
 | Fehler | Aktion |
 |--------|--------|
-| Quick-Test schlägt fehl | Beende Workflow. Agent muss Fehler beheben, dann neu starten. |
-| Tag bereits vorhanden | Inkrementiere Patch um 1, neuer Tag z.B. v0.10.3 → v0.10.4, retry. |
-| PyPI Publikation schlägt fehl | Release wird trotzdem erstellt (sichtbar auf GitHub), manuell mit `twine` wiederholen oder `Publish` Workflow re-triggern. |
+| Tests schlagen fehl | Fehler beheben, dann neu committen. CI startet Release nicht bei fehlenden releasable Commits. |
+| PSR findet keine releasable Commits | Normal — kein feat/fix/breaking → kein Release. |
+| PyPI Publikation schlägt fehl | GitHub Release existiert. PyPI kann über `publish.yml` (workflow_dispatch) nachgetriggert werden. |
 
-## Umgebungsvariablen (bereits vom User gesetzt)
+## Konfiguration
 
-```bash
-# Aus Terminal für lokale Fallbacks
-$env:TWINE_USERNAME = "__token__"
-$env:TWINE_PASSWORD = "pypi-..."  # Der PyPI Token
-## Befehle als Schnellreferenz
-```bash
-# 1. Quick-Test
-python -m pytest tests/ --ignore=tests/test_smoke.py -q --maxfail=1
-
-# 2. Version + CHANGELOG
-python scripts/release_automation.py --calc-version --update-changelog
-
-# 3. Commit + Tag + Push
-git add .
-git commit -m "chore: Release vX.Y.Z — update version and changelog"
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin main --tags
-```
+- PSR-Config: `pyproject.toml` → `[tool.semantic_release]`
+- CI-Workflow: `.github/workflows/release.yml`
+- PyPI-Secret: `PYPI_RELEASE` im GitHub Environment `pypi`
 
 ---
 
-**Wichtig:** Diese Instruktion ist bindend für alle Coding-Agenten, die `src/drift/**` Dateien ändern. Der Workflow muss nach jedem erfolgreichen Test durchgeführt werden, bevor der Agent die Aufgabe als abgeschlossen markiert.
+**Wichtig:** Agenten müssen KEINEN manuellen Release-Befehl mehr ausführen. Conventional Commits + Push auf main genügt.

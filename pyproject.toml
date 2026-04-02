@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    { name = "sauremilk" },
+    { name = "Mick Gottsch", email = "mick.gottsch@gmail.com" },
 ]
 keywords = [
     "code-analysis",
@@ -55,7 +55,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sauremilk/drift"
+Homepage = "https://sauremilk.github.io/drift/"
 Repository = "https://github.com/sauremilk/drift"
 Issues = "https://github.com/sauremilk/drift/issues"
 Documentation = "https://sauremilk.github.io/drift/"
@@ -88,6 +88,7 @@ dev = [
     "vulture>=2.11",
     "hypothesis>=6.100",
     "mutmut>=2.4",
+    "python-semantic-release>=9.0",
 ]
 all = [
     "drift-analyzer[typescript,embeddings,markdown,mcp,dev]",
@@ -95,6 +96,7 @@ all = [
 
 [project.scripts]
 drift = "drift.cli:safe_main"
+drift-analyzer = "drift.cli:safe_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/drift"]
@@ -102,8 +104,8 @@ packages = ["src/drift"]
 [tool.hatch.build.targets.sdist]
 exclude = [
     # Internal workspace artifacts — not for distribution
-    "# Drift*",
-    "tagesplanung/",
+    "Drift*",
+    "tagesplanung/**",
     "audit_results/",
     "benchmark_results/",
     "demos/",
@@ -166,3 +168,27 @@ warn_unused_configs = true
 ignore_missing_imports = true
 check_untyped_defs = true
 # CI and pre-push run mypy on src/drift directly; keep type checks clean.
+
+# --- python-semantic-release (PSR) ---
+# Replaces the manual `chore: Release` commit convention.
+# CI workflow .github/workflows/release.yml calls PSR on every push to main.
+# Local fallback: `semantic-release version` (requires `pip install python-semantic-release`)
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+commit_message = "chore: Release {version}"
+tag_format = "v{version}"
+build_command = ""
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+exclude_commit_patterns = [
+    "^chore: Release",
+]
+
+[tool.semantic_release.remote]
+type = "github"

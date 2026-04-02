@@ -128,40 +128,36 @@ Skalierungsmaßnahmen ohne gesichertes Vertrauen sind **nachrangig**.
 
 ---
 
-## Automatisierte Release-Pipeline für Coding-Agenten
+## Automatisierte Release-Pipeline (python-semantic-release)
 
-**WICHTIG:** Nach jeder erfolgreichen Code-Änderung an `src/drift/` MUSS der Agent automatisch den Release-Workflow durchführen.
+Releases werden vollständig automatisiert durch `python-semantic-release` (PSR) in CI verwaltet.
+Der CI-Workflow `.github/workflows/release.yml` läuft bei jedem Push auf `main`.
 
-Siehe: `.github/instructions/drift-release-automation.instructions.md`
+**Agenten müssen KEINEN manuellen Release-Befehl mehr ausführen.**
 
-### Release-Workflow (für Agenten verpflichtend)
+### Was Agenten tun müssen
 
-1. **Tests ausführen** (schnelle Tests ohne `--run-slow`)
-2. **Version berechnen** (Semantic Versioning basierend auf Commit-Mitteilungen)
-3. **CHANGELOG aktualisieren** (automatisch aus Commit-History)
-4. **Committen** (Version + CHANGELOG)
-5. **Tagen** (annotierter Git Tag mit Versionsnummer)
-6. **Pushen** (zu master + Tag)
-7. **Warten auf Workflow** (.github/workflows/publish.yml triggert automatisch → PyPI Publikation)
+1. **Conventional Commits verwenden** — PSR leitet die Versionierung aus Commit-Messages ab:
+   - `feat: ...` → MINOR Versions-Bump (0.x.0)
+   - `fix: ...` → PATCH Versions-Bump (0.0.x)
+   - `BREAKING CHANGE: ...` oder `BREAKING: ...` → MAJOR Versions-Bump (x.0.0)
+2. **Tests lokal ausführen** vor dem Commit
+3. **Committen** — PSR übernimmt alles weitere nach Push
 
-**Commit-Nachricht-Format für Versionsbumps:**
-- `feat: ...` → MINOR Versions-Bump (0.x.0)
-- `fix: ...` → PATCH Versions-Bump (0.0.x)
-- `BREAKING CHANGE: ...` oder `BREAKING: ...` → MAJOR Versions-Bump (x.0.0)
+### Was PSR automatisch macht (in CI)
 
-**Befehl für vollständigen Release:**
+1. Analysiert Commits seit letztem Tag
+2. Berechnet nächste Version (SemVer)
+3. Aktualisiert `pyproject.toml` + `CHANGELOG.md`
+4. Erstellt Release-Commit (`chore: Release X.Y.Z`)
+5. Erstellt Git Tag (`vX.Y.Z`)
+6. Erstellt GitHub Release
+7. Baut + publiziert zu PyPI
+
+**Lokaler Fallback** (nur bei CI-Ausfall):
 ```bash
 python scripts/release_automation.py --full-release
 ```
-
-Dieser Befehl:
-- Führt Quick-Tests durch (stoppt bei Fehler)
-- Berechnet automatisch die nächste Versionsnummer
-- Aktualisiert CHANGELOG.md
-- Erstellt Release-Commit
-- Erstellt Git Tag
-- Pushed alles zu GitHub
-- Triggert automatisch GitHub Release + PyPI Publikation
 
 ---
 
@@ -183,7 +179,7 @@ Im Zweifel gilt: geringerer Interpretationsspielraum, höherer Erkenntniswert.
 
 ## Schnellreferenz für Agenten
 
-Aktueller Release-Stand: **v0.8.2** (2026-03-28)
+Aktueller Release-Stand: **v1.4.2** (2026-04-02)
 
 Vollständiger Developer Guide: **[DEVELOPER.md](../DEVELOPER.md)**
 
@@ -204,9 +200,9 @@ ingestion/ → signals/ → scoring/ → output/
 | Lint + Autofix | `make lint-fix` |
 | CI lokal replizieren | `make ci` |
 | Selbstanalyse | `make self` |
-| **Release (vollständig)** | `python scripts/release_automation.py --full-release` |
-| Release: nur Version berechnen | `python scripts/release_automation.py --calc-version` |
-| Release: CHANGELOG aktualisieren | `python scripts/release_automation.py --update-changelog` |
+| **Release** | Automatisch via PSR in CI bei Push auf `main` |
+| Release: lokaler Fallback | `python scripts/release_automation.py --full-release` |
+| Release: Version prüfen | `semantic-release version --print` |
 
 ### Verzeichnisstruktur
 
