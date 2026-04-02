@@ -14,6 +14,9 @@ make check            # lint + typecheck + test + self-analysis
 
 > **Requirements:** Python 3.11+, Git, GNU Make (on Windows: Git Bash / WSL / `choco install make`).
 
+Maintainer operations: [docs/MAINTAINER_RUNBOOK.md](docs/MAINTAINER_RUNBOOK.md) and
+[docs/REPOSITORY_GOVERNANCE.md](docs/REPOSITORY_GOVERNANCE.md).
+
 ---
 
 ## Architecture
@@ -141,6 +144,7 @@ drift badge      Generate shields.io badge URL
 - **Python 3.11+**, type annotations on all public APIs
 - **Ruff** for linting (`ruff check src/ tests/`), **mypy** for type checking
 - **Conventional Commits** enforced by commit-msg hook: `feat|fix|docs|refactor|test|chore(scope): msg`
+- **Decision Trailer:** commits implementing an ADR carry `Decision: ADR-NNN` in the commit body
 - **Coverage gate:** 65% minimum (ratchet — only increase)
 - **Self-analysis gate:** `drift self` score must stay ≤ previous + 0.010
 - **Root discipline:** new tracked top-level entries must satisfy [docs/ROOT_POLICY.md](docs/ROOT_POLICY.md) and `.github/repo-root-allowlist`
@@ -217,21 +221,26 @@ Configuration is in `pyproject.toml` `[tool.mutmut]`.
 
 ## Release Process
 
-**Automated (recommended):**
+**Normal path:** merge a pull request to `main` with a valid conventional-commit title.
+
+That merge triggers [release.yml](.github/workflows/release.yml), which runs
+`python-semantic-release` in CI to calculate the version, update release metadata,
+create the tag, and publish the GitHub release.
+
+After a user-visible merge, verify:
+
+- the release workflow succeeded
+- the new tag and GitHub release exist
+- PyPI shows the expected version
+
+**Local fallback (CI failure only):**
 
 ```bash
 python scripts/release_automation.py --full-release
 ```
 
-This single command: runs quick tests → calculates next version → updates CHANGELOG → commits → tags → pushes → triggers PyPI publication.
-
-**Manual steps (if needed):**
-
-1. Bump version in `pyproject.toml`
-2. Update `CHANGELOG.md`
-3. Commit: `chore: bump version to vX.Y.Z`
-4. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
-5. Create GitHub Release → CI publishes to PyPI and updates the `v1` major tag
+Use the fallback only when the automated release path is unavailable and a maintainer
+has decided manual intervention is warranted.
 
 **Helpers:**
 
@@ -257,14 +266,21 @@ See [CONTRIBUTING.md → Versioning](CONTRIBUTING.md#versioning) for details.
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | Push/PR to main | Lint, typecheck, tests, coverage, self-analysis, score gate |
+| `release.yml` | Push to main / manual | Run python-semantic-release |
 | `publish.yml` | GitHub Release / manual | Build + publish to PyPI (token or trusted publishing) |
-| `auto-release-on-push.yml` | Push to main | Auto-create GitHub Release from pyproject.toml version |
-| `validate-release.yml` | Tag push `v*` | Pre-publish version validation |
-| `docs.yml` | Push to main (docs changes) | Build + deploy MkDocs to GitHub Pages |
+| `validate-release.yml` | Release-related changes / manual | Release metadata and process validation |
+| `docs.yml` | Docs updates | Build + deploy MkDocs to GitHub Pages |
 | `repo-guard.yml` | Push/PR to main | Repository hygiene checks (blocklist, root allowlist) |
+| `dependency-review.yml` | Pull requests | Dependency risk review |
+| `workflow-sanity.yml` | Workflow file changes | Workflow consistency checks |
+| `install-smoke.yml` | Scheduled / manual | Installability smoke test |
+| `security-hygiene.yml` | Scheduled / manual | Security hygiene verification |
+| `codeql.yml` | Scheduled / push / pull_request | Code scanning |
 | `package-kpis.yml` | Monthly cron / manual | Collect PyPI downloads + GitHub dependency usage |
 | `welcome.yml` | First issue/PR | Automated welcome message for new contributors |
 | `stale.yml` | Weekly cron | Mark and close inactive issues/PRs |
+
+For the full workflow matrix and consolidation notes, see [.github/workflows/README.md](.github/workflows/README.md).
 
 ### Temporary Cirrus CI fallback
 

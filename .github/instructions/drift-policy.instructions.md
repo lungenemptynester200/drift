@@ -68,5 +68,11 @@ Bei Änderungen an Signalen, Input-Pfaden, Output-Kanälen oder Trust Boundaries
 | Precision/Recall Δ > 5% | FMEA (RPNs neu berechnen) + Risk Register (Messwerte) |
 
 Die vier Audit-Artefakte unter `audit_results/` dürfen **nicht gelöscht** werden.
+
+## Entscheidungsdokumentation (ADR-Pflicht)
+
+Änderungen an Signalen, Scoring-Logik, Output-Formaten oder Architektur-Boundaries erfordern ein ADR unter `decisions/` **vor** Implementierung.
+Ausgenommen: Bugfixes und reine Refactorings.
+Agent-Entwürfe erhalten Status `proposed` — nur der Maintainer setzt `accepted`.
 Ein Agent, der signalrelevante Änderungen ohne Audit-Update vornimmt, **verletzt diese Policy**.
 Pre-Push-Hook und CI erzwingen die Einhaltung automatisch.

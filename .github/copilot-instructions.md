@@ -169,6 +169,30 @@ python scripts/release_automation.py --full-release
 
 ---
 
+## Agent-Delegation-Boundaries
+
+### Eigenständig (ohne Maintainer-Approval)
+
+- ADR-Templates vorbefüllen (Status bleibt `proposed`)
+- Backlog-Items vorschlagen (Status `proposed`)
+- Audit-Artefakte gemäß §18 aktualisieren
+- Tests schreiben und ausführen
+- Lint/Typecheck-Fehler beheben
+- Fixture-Dateien erstellen
+- CHANGELOG-Einträge vorbereiten
+
+### Erfordert Maintainer-Approval
+
+- ADR-Status auf `accepted` oder `rejected` setzen
+- Backlog-Reihenfolge ändern
+- Signal-Heuristik oder Scoring-Gewichte ändern
+- Policy-Änderungen vorschlagen (nicht eigenständig umsetzen)
+- Commits pushen
+- Issues/PRs kommentieren oder schließen
+- Neue Signale implementieren
+
+---
+
 ## Schlussbestimmung
 
 Diese Policy ist verbindlich (Policy §18).
@@ -203,6 +227,13 @@ ingestion/ → signals/ → scoring/ → output/
 | **Release** | Automatisch via PSR in CI bei Push auf `main` |
 | Release: lokaler Fallback | `python scripts/release_automation.py --full-release` |
 | Release: Version prüfen | `semantic-release version --print` |
+
+### Konventionen
+
+- Bei ADR-Umsetzung: `Decision: ADR-NNN` Trailer im Commit-Body
+- ADR-Pflicht vor Implementierung bei Änderungen an Signalen, Scoring, Output oder Architektur-Boundaries
+- ADRs liegen unter `.internal/decisions/`, Templates (öffentlich) unter `decisions/templates/`
+- Priorisierter Backlog: `.internal/BACKLOG.md`
 
 ### Verzeichnisstruktur
 
