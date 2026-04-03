@@ -7,7 +7,18 @@ from pathlib import Path
 
 from drift.cache import ParseCache
 from drift.config import DriftConfig
-from drift.models import FileInfo, Finding, ParseResult, Severity, SignalType
+from drift.models import (
+    ClassInfo,
+    FileInfo,
+    Finding,
+    FunctionInfo,
+    ImportInfo,
+    ParseResult,
+    PatternCategory,
+    PatternInstance,
+    Severity,
+    SignalType,
+)
 from drift.pipeline import DegradationInfo, IngestionPhase, ScoringPhase, SignalPhase
 
 
@@ -65,6 +76,87 @@ def test_ingestion_phase_uses_cache_and_preserves_order(tmp_path: Path) -> None:
     assert [r.file_path for r in out.parse_results] == [Path("a.py"), Path("b.py")]
     assert out.commits == []
     assert out.file_histories == {}
+
+
+def test_ingestion_phase_remaps_all_cached_file_references(tmp_path: Path) -> None:
+    cfg = _config()
+    old_file = tmp_path / "old.py"
+    new_file = tmp_path / "new.py"
+    content = "def same():\n    return 1\n"
+    old_file.write_text(content, encoding="utf-8")
+    new_file.write_text(content, encoding="utf-8")
+
+    files = [_file_info("new.py")]
+
+    cache = ParseCache(tmp_path / cfg.cache_dir)
+    cached_hash = ParseCache.file_hash(new_file)
+    cached = ParseResult(
+        file_path=Path("old.py"),
+        language="python",
+        functions=[
+            FunctionInfo(
+                name="same",
+                file_path=Path("old.py"),
+                start_line=1,
+                end_line=2,
+                language="python",
+            )
+        ],
+        classes=[
+            ClassInfo(
+                name="Old",
+                file_path=Path("old.py"),
+                start_line=1,
+                end_line=2,
+                language="python",
+                methods=[
+                    FunctionInfo(
+                        name="m",
+                        file_path=Path("old.py"),
+                        start_line=1,
+                        end_line=2,
+                        language="python",
+                    )
+                ],
+            )
+        ],
+        imports=[
+            ImportInfo(
+                source_file=Path("old.py"),
+                imported_module="typing",
+                imported_names=["Any"],
+                line_number=1,
+            )
+        ],
+        patterns=[
+            PatternInstance(
+                category=PatternCategory.ERROR_HANDLING,
+                file_path=Path("old.py"),
+                function_name="same",
+                start_line=1,
+                end_line=2,
+            )
+        ],
+    )
+    cache.put(cached_hash, cached)
+
+    phase = IngestionPhase(is_git_repo_fn=lambda _p: False)
+    out = phase.run(
+        tmp_path,
+        files,
+        cfg,
+        since_days=30,
+        workers=1,
+        degradation=DegradationInfo(causes=set(), components=set(), events=[]),
+    )
+
+    pr = out.parse_results[0]
+    assert pr.file_path == Path("new.py")
+    assert all(func.file_path == Path("new.py") for func in pr.functions)
+    assert all(cls.file_path == Path("new.py") for cls in pr.classes)
+    assert all(method.file_path == Path("new.py") for cls in pr.classes for method in cls.methods)
+    assert all(imp.source_file == Path("new.py") for imp in pr.imports)
+    assert all(pattern.file_path == Path("new.py") for pattern in pr.patterns)
 
 
 def test_signal_phase_records_degradation_on_signal_failure(tmp_path: Path) -> None:

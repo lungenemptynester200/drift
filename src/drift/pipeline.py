@@ -238,6 +238,14 @@ class IngestionPhase:
                         hit.file_path = finfo.path
                         for func in hit.functions:
                             func.file_path = finfo.path
+                        for cls in hit.classes:
+                            cls.file_path = finfo.path
+                            for method in cls.methods:
+                                method.file_path = finfo.path
+                        for imp in hit.imports:
+                            imp.source_file = finfo.path
+                        for pattern in hit.patterns:
+                            pattern.file_path = finfo.path
                     cached_results[idx] = hit
                     continue
             except OSError:
