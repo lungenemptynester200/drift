@@ -7,6 +7,8 @@
 - `drift check` now supports `--save-baseline` and `--max-findings` options for CI parity with `drift analyze` (#116).
 - `drift diff` JSON output now includes `score_basis` field (`"historical"` or `"zero_default"`) to clarify when `score_before` reflects actual repo baseline vs. synthetic zero (#119).
 - Add `csv` output format for `drift analyze` and `drift check` to export findings as one-row-per-finding tabular output (`signal,severity,score,title,file,start_line,end_line`) (#14).
+- Add a dedicated PFS signal reference page in docs with detection details, scoring formula, severity thresholds, remediation guidance, and example outputs (#24).
+- Add regression test suites for edge-case projects and framework-specific ISD fixtures to improve signal robustness across minimal and real-world repository shapes (#13, #26).
 
 ### Changed
 
@@ -15,6 +17,7 @@
 ### Fixed
 
 - Reduce DIA false positives by requiring structural context for plain markdown slash-tokens (e.g. `async/`, `scan/`, `connectors/`) before emitting missing-directory findings, while preserving explicit path references in code spans/backticks (#121).
+- Add trailing newlines in CSV formatter and CSV tests to satisfy lint gate requirements and keep pre-push checks green.
 - Surface file I/O errors in `analyze`, `check`, and `scan` commands as structured `DRIFT-2003` errors with exit code 2 instead of unhandled `OSError` tracebacks.
 - Validate `--max-findings` range (1–200) in `drift scan` via `click.IntRange` and reject out-of-range values with exit code 2.
 - Improve `DRIFT-2003` action message to explicitly suggest checking output path writability and parent directory existence.
