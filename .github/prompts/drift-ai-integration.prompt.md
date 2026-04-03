@@ -74,6 +74,13 @@ Erstelle Artefakte unter `work_artifacts/ai_integration_<YYYY-MM-DD>/`:
 
 ### Phase 0: AI-facing Oberflächen inventarisieren
 
+**Dev-Version sicherstellen** (siehe `_partials/konventionen.md` → Versions-Freshness):
+
+```bash
+pip install -e .   # Dev-Version aus Workspace
+drift --version    # Muss mit pyproject.toml übereinstimmen
+```
+
 Identifiziere alle derzeit exponierten AI-facing Features:
 - `copilot-context`
 - `export-context` (Formate: `instructions`, `prompt`, `raw`)

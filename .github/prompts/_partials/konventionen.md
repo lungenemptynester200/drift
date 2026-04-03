@@ -60,6 +60,31 @@ Keine Prompt-spezifischen Bewertungssysteme einführen.
 Bei GitHub-Issue-Erstellung den Template-Block aus `_partials/issue-filing.md` verwenden.
 Keine individuellen Issue-Templates pro Prompt.
 
+## Versions-Freshness
+
+Jeder Prompt MUSS sicherstellen, dass die aktuellste `drift-analyzer`-Version verwendet wird.
+Ein Test gegen eine veraltete Version hat keinen Erkenntniswert.
+
+**Field-Test-Prompts** (externe Repos — PyPI-Release):
+
+```bash
+pip install --upgrade drift-analyzer   # Immer zuerst upgraden
+drift --version                        # Installierte Version dokumentieren
+pip index versions drift-analyzer 2>/dev/null | head -1  # Optional: Verfügbare Versionen prüfen
+```
+
+Falls `pip install --upgrade` scheitert (Netzwerk, Index), MUSS dies im Report dokumentiert
+und die aktuell installierte Version explizit angegeben werden.
+
+**Interne Prompts** (Drift-Workspace — Dev-Version):
+
+```bash
+pip install -e .                       # Dev-Version aus dem Workspace installieren
+drift --version                        # Muss mit pyproject.toml übereinstimmen
+```
+
+Beide Szenarien: Die genutzte drift-Version MUSS im Report-Header oder Repo-Profil erscheinen.
+
 ## Querverweise
 
 Jeder Prompt SOLLTE am Ende seines Frontmatter-Bereichs oder in einem dedizierten Abschnitt

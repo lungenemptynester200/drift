@@ -82,8 +82,11 @@ New-Item -ItemType Directory -Path $sandbox -Force
 
 ### Phase 1: Installation & Discovery
 
+**Dev-Version sicherstellen** (siehe `_partials/konventionen.md` → Versions-Freshness):
+
 ```bash
-drift --version
+pip install -e .   # Dev-Version aus Workspace
+drift --version    # Muss mit pyproject.toml übereinstimmen
 drift --help
 ```
 

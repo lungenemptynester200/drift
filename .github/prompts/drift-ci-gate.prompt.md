@@ -70,6 +70,13 @@ Erstelle Artefakte unter `work_artifacts/ci_gate_<YYYY-MM-DD>/`:
 
 ### Phase 0: Gate-relevante Kommandos inventarisieren
 
+**Dev-Version sicherstellen** (siehe `_partials/konventionen.md` → Versions-Freshness):
+
+```bash
+pip install -e .   # Dev-Version aus Workspace
+drift --version    # Muss mit pyproject.toml übereinstimmen
+```
+
 Identifiziere die für CI relevanten Kommandos und Optionen, insbesondere:
 - `check` (mit `--fail-on`, `--json`, `--compact`, `--output-format`)
 - `validate`

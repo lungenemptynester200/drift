@@ -75,7 +75,17 @@ Erstelle Artefakte unter `work_artifacts/finding_audit_<YYYY-MM-DD>/`:
 
 ### Phase 0: Architektur-Profil erstellen
 
-Analysiere das Repository, um einen informierten Oracle aufzubauen:
+**Versions-Freshness sicherstellen:**
+
+```bash
+pip install --upgrade drift-analyzer   # Aktuellste Version von PyPI
+drift --version                        # Version dokumentieren
+```
+
+Falls das Upgrade scheitert (Netzwerk, Index), dies im Report dokumentieren
+und mit der aktuell installierten Version fortfahren.
+
+**Repository analysieren**, um einen informierten Oracle aufzubauen:
 
 ```bash
 # Struktur verstehen
@@ -98,6 +108,7 @@ ls -la  # oder: Get-ChildItem
 | Sprache(n) | [Python / TypeScript / Mixed] |
 | Framework(s) | [Django / Flask / FastAPI / Express / None / ...] |
 | Ungefähre Größe | [Dateien / LOC] |
+| drift-Version | [VERSION] |
 | Bekannte Architekturentscheidungen | [z.B. "Django-apps-Struktur", "Hexagonal", "Layered"] |
 
 ### Phase 1: Oracle aufbauen

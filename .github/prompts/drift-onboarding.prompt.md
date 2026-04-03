@@ -69,6 +69,13 @@ Erstelle Artefakte unter `work_artifacts/onboarding_<YYYY-MM-DD>/`:
 
 ### Phase 0: Neueinsteiger-Perspektive einnehmen
 
+**Dev-Version sicherstellen** (siehe `_partials/konventionen.md` → Versions-Freshness):
+
+```bash
+pip install -e .   # Dev-Version aus Workspace
+drift --version    # Muss mit pyproject.toml übereinstimmen
+```
+
 Nimm an, du hast kein repo-spezifisches Drift-Wissen außer dem, was CLI und generierte Dateien liefern.
 
 Dokumentiere:

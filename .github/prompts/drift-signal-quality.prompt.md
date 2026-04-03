@@ -78,6 +78,13 @@ Erstelle Artefakte unter `work_artifacts/signal_quality_<YYYY-MM-DD>/`:
 
 ### Phase 0: Signal-Inventar erstellen
 
+**Dev-Version sicherstellen** (siehe `_partials/konventionen.md` → Versions-Freshness):
+
+```bash
+pip install -e .   # Dev-Version aus Workspace
+drift --version    # Muss mit pyproject.toml übereinstimmen
+```
+
 Signale aus realer CLI-Ausgabe inventarisieren und Abkürzungen, Namen und verfügbare Beschreibungen erfassen.
 
 Mindestens prüfen:

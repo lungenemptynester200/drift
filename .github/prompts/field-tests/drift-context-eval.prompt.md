@@ -70,7 +70,17 @@ Erstelle Artefakte unter `work_artifacts/context_eval_<YYYY-MM-DD>/`:
 
 ### Phase 0: Repo-Profil erstellen
 
-Identisches Profil wie in `drift-finding-audit` Phase 0:
+**Versions-Freshness sicherstellen:**
+
+```bash
+pip install --upgrade drift-analyzer   # Aktuellste Version von PyPI
+drift --version                        # Version dokumentieren
+```
+
+Falls das Upgrade scheitert (Netzwerk, Index), dies im Report dokumentieren
+und mit der aktuell installierten Version fortfahren.
+
+**Identisches Profil wie in `drift-finding-audit` Phase 0:**
 
 | Eigenschaft | Wert |
 |-------------|------|
@@ -79,6 +89,7 @@ Identisches Profil wie in `drift-finding-audit` Phase 0:
 | Sprache(n) | [Python / TypeScript / Mixed] |
 | Framework(s) | [Django / Flask / FastAPI / Express / None / ...] |
 | Ungefähre Größe | [Dateien / LOC] |
+| drift-Version | [VERSION] |
 
 ### Phase 1: Alle Export-Formate ausführen
 

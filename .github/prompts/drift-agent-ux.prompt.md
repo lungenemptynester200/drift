@@ -73,9 +73,12 @@ Erstelle Artefakte unter `work_artifacts/agent_ux_<YYYY-MM-DD>/`:
 
 Erkunde die CLI als Zero-Knowledge-Agent.
 
+**Dev-Version sicherstellen** (siehe `_partials/konventionen.md` → Versions-Freshness):
+
 ```bash
+pip install -e .   # Dev-Version aus Workspace
 drift --help
-drift --version
+drift --version    # Muss mit pyproject.toml übereinstimmen
 ```
 
 Für jedes Top-Level-Kommando:

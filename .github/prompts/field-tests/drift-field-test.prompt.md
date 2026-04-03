@@ -67,6 +67,18 @@ Erstelle Artefakte unter `work_artifacts/field_test_<YYYY-MM-DD>/`:
 
 ### Phase 0: Voraussetzungen prüfen
 
+**Versions-Freshness sicherstellen:**
+
+```bash
+pip install --upgrade drift-analyzer   # Aktuellste Version von PyPI
+drift --version                        # Version dokumentieren
+```
+
+Falls das Upgrade scheitert (Netzwerk, Index), dies im Report dokumentieren
+und mit der aktuell installierten Version fortfahren.
+
+**System-Voraussetzungen:**
+
 ```bash
 python --version          # ≥ 3.11 erforderlich
 git --version             # Git muss vorhanden sein
