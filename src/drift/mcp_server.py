@@ -23,7 +23,7 @@ import json
 import os
 import re as _re
 from pathlib import Path
-from typing import Annotated, Any, cast
+from typing import Annotated, Any
 
 import anyio
 
@@ -235,7 +235,8 @@ async def drift_scan(
             error["tool"] = "drift_scan"
             return json.dumps(error, default=str)
 
-    return cast(str, await anyio.to_thread.run_sync(_sync))
+    payload: str = await anyio.to_thread.run_sync(_sync)
+    return payload
 
 
 @mcp.tool()
@@ -291,7 +292,8 @@ async def drift_diff(
         )
         return json.dumps(result, default=str)
 
-    return cast(str, await anyio.to_thread.run_sync(_sync))
+    payload: str = await anyio.to_thread.run_sync(_sync)
+    return payload
 
 
 @mcp.tool()
@@ -321,7 +323,8 @@ async def drift_explain(
 
         return json.dumps(explain(topic), default=str)
 
-    return cast(str, await anyio.to_thread.run_sync(_sync))
+    payload: str = await anyio.to_thread.run_sync(_sync)
+    return payload
 
 
 @mcp.tool()
@@ -380,7 +383,8 @@ async def drift_fix_plan(
         )
         return json.dumps(result, default=str)
 
-    return cast(str, await anyio.to_thread.run_sync(_sync))
+    payload: str = await anyio.to_thread.run_sync(_sync)
+    return payload
 
 
 @mcp.tool()
@@ -407,7 +411,8 @@ async def drift_validate(
         result = validate(path, config_file=config_file)
         return json.dumps(result, default=str)
 
-    return cast(str, await anyio.to_thread.run_sync(_sync))
+    payload: str = await anyio.to_thread.run_sync(_sync)
+    return payload
 
 
 @mcp.tool()
@@ -539,7 +544,8 @@ async def drift_brief(
             )
             return json.dumps(error, default=str)
 
-    return cast(str, await anyio.to_thread.run_sync(_sync))
+    payload: str = await anyio.to_thread.run_sync(_sync)
+    return payload
 
 
 @mcp.tool()
@@ -607,10 +613,11 @@ async def drift_negative_context(
 
     try:
         with anyio.fail_after(_NEGATIVE_CONTEXT_TIMEOUT_SECONDS):
-            return cast(
-                str,
-                await anyio.to_thread.run_sync(_sync, abandon_on_cancel=True),
+            payload: str = await anyio.to_thread.run_sync(
+                _sync,
+                abandon_on_cancel=True,
             )
+            return payload
     except TimeoutError:
         timeout_response = _negative_context_timeout_response(
             path=path,
