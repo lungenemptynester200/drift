@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -96,7 +97,12 @@ def ts_parse_source(source: str, language: str = "typescript") -> tuple[Any, byt
         source_bytes = source.encode("utf-8")
         tree = parser.parse(source_bytes)
         return tree.root_node, source_bytes
+    except ImportError:
+        return None
     except Exception:
+        logging.getLogger("drift").debug(
+            "tree-sitter parse failed for %s source", language, exc_info=True,
+        )
         return None
 
 

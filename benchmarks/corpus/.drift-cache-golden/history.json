@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-04-03T21:25:15.510135+00:00",
+    "drift_score": 0.516,
+    "signal_scores": {
+      "mutant_duplicate": 0.8532,
+      "explainability_deficit": 0.4721,
+      "doc_impl_drift": 0.2602,
+      "test_polarity_deficit": 0.1734,
+      "guard_clause_deficit": 0.4698,
+      "naming_contract_violation": 0.3469,
+      "cognitive_complexity": 0.5357,
+      "dead_code_accumulation": 0.8146
+    },
+    "total_files": 26,
+    "total_findings": 62,
+    "scope": "repo"
+  }
+]

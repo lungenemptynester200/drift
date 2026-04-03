@@ -557,7 +557,14 @@ def parse_typescript_file(
         return _parse_typescript_stub(file_path, repo_path, language=language)
 
     full_path = repo_path / file_path
-    source_text = full_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        source_text = full_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return ParseResult(
+            file_path=file_path,
+            language=language,
+            parse_errors=[f"{type(exc).__name__}: {exc}"],
+        )
     source_bytes = source_text.encode("utf-8")
 
     ts_lang = "tsx" if language in ("tsx", "jsx") else "typescript"

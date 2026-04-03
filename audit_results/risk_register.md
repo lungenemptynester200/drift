@@ -1,5 +1,22 @@
 # Risk Register
 
+## 2026-04-03 - Parse I/O resilience and malformed trend history hardening
+
+- Risk ID: RISK-ING-2026-04-03-RESILIENCE
+- Component: src/drift/ingestion/ast_parser.py, src/drift/ingestion/ts_parser.py, src/drift/signals/_utils.py, src/drift/trend_history.py, src/drift/commands/trend.py
+- Type: Ingestion robustness and result continuity
+- Description: Transient file-system race conditions (file removed between discovery and parse) and malformed trend snapshots could raise unhandled exceptions or break CLI rendering.
+- Trigger examples:
+  - `FileNotFoundError` / `PermissionError` while reading discovered Python/TypeScript files.
+  - History entries without numeric `drift_score` or missing `timestamp` fields.
+- Impact: Analyzer interruption, reduced reproducibility, and unstable user feedback under non-deterministic file-system conditions.
+- Mitigation:
+  - Parse paths now return structured `ParseResult.parse_errors` on `OSError` instead of propagating exceptions.
+  - Trend context and trend CLI now filter malformed snapshots and continue with valid entries.
+  - TypeScript parse helper degrades cleanly when parser dependencies are unavailable and logs debug details for unexpected parser failures.
+- Verification: tests/test_parse_file_resilience.py, tests/test_malformed_history.py, tests/test_brief.py.
+- Residual risk: Low; malformed historical data is skipped, so derived trend depth may be lower than raw snapshot count.
+
 ## 2026-04-03 - PFS/NBV copilot-context actionability upgrade (Issue #125)
 
 - Risk ID: RISK-SIG-2026-04-03-125

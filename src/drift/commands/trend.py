@@ -38,6 +38,13 @@ def trend(repo: Path, days: int, config: Path | None) -> None:
     # Analyzer persistiert den aktuellen Snapshot bereits kanonisch.
     snapshots = [s for s in load_history(history_file) if snapshot_scope(s) == "repo"]
 
+    # Filter to entries with required keys for display — malformed entries
+    # (e.g. legacy format, partial writes) are silently skipped.
+    snapshots = [
+        s for s in snapshots
+        if isinstance(s.get("drift_score"), (int, float)) and isinstance(s.get("timestamp"), str)
+    ]
+
     # Display trend table
     if len(snapshots) < 2:
         console.print(f"  Drift score: [bold]{analysis.drift_score:.3f}[/bold]")

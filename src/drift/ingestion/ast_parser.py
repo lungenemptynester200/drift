@@ -537,7 +537,14 @@ class PythonFileParser(ast.NodeVisitor):
 def parse_python_file(file_path: Path, repo_path: Path) -> ParseResult:
     """Parse a Python file and return structural information."""
     full_path = repo_path / file_path
-    source = full_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        source = full_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return ParseResult(
+            file_path=file_path,
+            language="python",
+            parse_errors=[f"{type(exc).__name__}: {exc}"],
+        )
     parser = PythonFileParser(source, file_path)
     return parser.parse()
 
@@ -569,7 +576,14 @@ def _parse_typescript_stub(
     Full TypeScript AST parsing requires tree-sitter (optional dependency).
     """
     full_path = repo_path / file_path
-    source = full_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        source = full_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return ParseResult(
+            file_path=file_path,
+            language=language,
+            parse_errors=[f"{type(exc).__name__}: {exc}"],
+        )
     lines = source.splitlines()
 
     imports: list[ImportInfo] = []

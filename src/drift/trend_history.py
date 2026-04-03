@@ -38,7 +38,15 @@ def save_history(history_file: Path, snapshots: list[dict]) -> None:
 
 def build_trend_context(current_score: float, snapshots: list[dict]) -> TrendContext:
     """Compute trend context from history snapshots."""
-    if not snapshots:
+    # Filter to entries that have a numeric drift_score — malformed entries
+    # (missing key, wrong type) are silently skipped so a single corrupt
+    # history entry does not crash the entire analysis pipeline.
+    valid = [
+        s for s in snapshots
+        if isinstance(s.get("drift_score"), (int, float))
+    ]
+
+    if not valid:
         return TrendContext(
             previous_score=None,
             delta=None,
@@ -48,7 +56,7 @@ def build_trend_context(current_score: float, snapshots: list[dict]) -> TrendCon
             transition_ratio=0.0,
         )
 
-    prev = snapshots[-1]["drift_score"]
+    prev = valid[-1]["drift_score"]
     delta = round(current_score - prev, 4)
 
     if abs(delta) < NOISE_FLOOR:
@@ -58,14 +66,14 @@ def build_trend_context(current_score: float, snapshots: list[dict]) -> TrendCon
     else:
         direction = "degrading"
 
-    recent = [s["drift_score"] for s in snapshots[-5:]]
+    recent = [s["drift_score"] for s in valid[-5:]]
 
     return TrendContext(
         previous_score=prev,
         delta=delta,
         direction=direction,
         recent_scores=recent,
-        history_depth=len(snapshots),
+        history_depth=len(valid),
         transition_ratio=0.0,
     )
 

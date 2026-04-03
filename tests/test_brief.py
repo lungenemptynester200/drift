@@ -73,19 +73,39 @@ class TestApiBrief:
 
 
 class TestBriefCli:
+
+    @staticmethod
+    def _make_runner() -> CliRunner:
+        """Create a CliRunner compatible with both Click 8.1 and 8.2+."""
+        kwargs: dict = {}
+        if "mix_stderr" in CliRunner.__init__.__code__.co_varnames:
+            kwargs["mix_stderr"] = False
+        return CliRunner(**kwargs)
+
+    @staticmethod
+    def _extract_json(output: str) -> dict:
+        """Extract the JSON object from CLI output that may contain stderr."""
+        # When mix_stderr is unavailable (Click 8.2+), stderr may precede
+        # or follow the JSON payload.  Find the outermost { ... }.
+        start = output.find("{")
+        end = output.rfind("}")
+        if start == -1 or end == -1:
+            raise ValueError(f"No JSON object in output: {output!r}")
+        return json.loads(output[start : end + 1])
+
     def test_json_output_is_valid(self, tmp_repo: Path) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = self._make_runner()
         result = runner.invoke(
             brief_cmd,
             ["--task", "refactor api", "--repo", str(tmp_repo), "--json"],
         )
         # Exit code 0 or 1 (BLOCK) is acceptable
         assert result.exit_code in (0, 1), result.output
-        parsed = json.loads(result.output)
+        parsed = self._extract_json(result.output)
         assert parsed["type"] == "brief"
 
     def test_markdown_output(self, tmp_repo: Path) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = self._make_runner()
         result = runner.invoke(
             brief_cmd,
             ["--task", "update services", "--repo", str(tmp_repo),
@@ -95,7 +115,7 @@ class TestBriefCli:
         assert "# Drift Brief" in result.output or "## " in result.output
 
     def test_rich_output(self, tmp_repo: Path) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = self._make_runner()
         result = runner.invoke(
             brief_cmd,
             ["--task", "fix db layer", "--repo", str(tmp_repo)],
@@ -103,15 +123,15 @@ class TestBriefCli:
         assert result.exit_code in (0, 1), result.output
 
     def test_task_option_required(self) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = self._make_runner()
         result = runner.invoke(brief_cmd, ["--repo", "."])
         assert result.exit_code != 0
-        combined = result.output + (result.stderr or "")
+        combined = result.output + (getattr(result, "stderr", None) or "")
         assert "Missing option" in combined or "required" in combined.lower()
 
     def test_quiet_flag(self, tmp_repo: Path) -> None:
         """--quiet should suppress the header but still print guardrails."""
-        runner = CliRunner(mix_stderr=False)
+        runner = self._make_runner()
         result = runner.invoke(
             brief_cmd,
             ["--task", "update api", "--repo", str(tmp_repo), "--quiet"],
@@ -119,14 +139,14 @@ class TestBriefCli:
         assert result.exit_code in (0, 1)
 
     def test_select_signals(self, tmp_repo: Path) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = self._make_runner()
         result = runner.invoke(
             brief_cmd,
             ["--task", "refactor", "--repo", str(tmp_repo),
              "--json", "--select", "PFS,BEM"],
         )
         assert result.exit_code in (0, 1), result.output
-        parsed = json.loads(result.output)
+        parsed = self._extract_json(result.output)
         assert "landscape" in parsed
 
 
