@@ -509,13 +509,16 @@ class TestCLICommands:
             lambda *_args, **_kwargs: "# copilot-section\n",
         )
 
-        runner = CliRunner(mix_stderr=False)
+        runner_kwargs: dict[str, object] = {}
+        if "mix_stderr" in CliRunner.__init__.__code__.co_varnames:
+            runner_kwargs["mix_stderr"] = False
+        runner = CliRunner(**runner_kwargs)
         result = runner.invoke(
             main,
             ["copilot-context", "--repo", str(tmp_path)],
         )
 
         assert result.exit_code == 0
-        assert result.output.startswith("# copilot-section")
-        assert "Running drift analysis" not in result.output
+        assert result.stdout.startswith("# copilot-section")
+        assert "Running drift analysis" not in result.stdout
         assert "Running drift analysis" in result.stderr

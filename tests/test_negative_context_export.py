@@ -446,15 +446,18 @@ class TestExportContextCLI:
             lambda *_args, **_kwargs: '{"format":"drift-negative-context-v1"}',
         )
 
-        runner = CliRunner(mix_stderr=False)
+        runner_kwargs: dict[str, object] = {}
+        if "mix_stderr" in CliRunner.__init__.__code__.co_varnames:
+            runner_kwargs["mix_stderr"] = False
+        runner = CliRunner(**runner_kwargs)
         result = runner.invoke(
             main,
             ["export-context", "--repo", str(tmp_path), "--format", "raw"],
         )
 
         assert result.exit_code == 0
-        assert result.output.lstrip().startswith("{")
-        assert "Running drift analysis" not in result.output
+        assert result.stdout.lstrip().startswith("{")
+        assert "Running drift analysis" not in result.stdout
         assert "Running drift analysis" in result.stderr
 
 
