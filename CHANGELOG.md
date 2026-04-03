@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+
+- Introduce configurable finding-context triage policy with precedence-based glob rules to keep non-operational findings out of default remediation queues unless explicitly requested.
+
+### Changed
+
+- Align agent prompt artifacts and prompt partials to enforce policy-gate consistency and shared taxonomy fragments across workflow prompts.
+
 ### Fixed
 
 - Surface file I/O errors in `analyze`, `check`, and `scan` commands as structured `DRIFT-2003` errors with exit code 2 instead of unhandled `OSError` tracebacks.
@@ -8,6 +16,7 @@
 - Stabilize self-hosted CI Python setup by moving the test matrix to `actions/setup-python@v6` and keep Security Hygiene green by refreshing the detect-secrets baseline plus excluding known false-positive test/documentation files at the pre-commit hook level.
 - Prevent CI/release false failures on self-hosted Windows by pinning test jobs back to `actions/setup-python@v5`, making no-tag release detection PowerShell-safe, and allowlisting the signal map `hardcoded_secret` label for detect-secrets.
 - Document and enforce the Windows runner workaround for `actions/setup-python` registry-permission failures so CI uses `@v5` until runner permissions are fixed.
+- Improve AVS mutation detection and recommendation edge-case handling to reduce unstable or misleading remediation output.
 
 ## [2.1.3] - 2026-04-02
 
