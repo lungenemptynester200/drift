@@ -118,10 +118,23 @@ def self_analysis_findings() -> list[Finding]:
     repo_root = Path(__file__).resolve().parent.parent
     config = DriftConfig(
         include=["**/*.py"],
-        exclude=["**/__pycache__/**", "**/node_modules/**", "**/.venv*/**"],
+        exclude=[
+            "**/__pycache__/**",
+            "**/node_modules/**",
+            "**/.venv*/**",
+            "**/.tmp_*venv*/**",
+            "**/docs/**",
+            "**/tests/**",
+            "**/site/**",
+        ],
         embeddings_enabled=False,
     )
-    analysis = analyze_repo(repo_root, config=config, since_days=365)
+    analysis = analyze_repo(
+        repo_root,
+        config=config,
+        since_days=365,
+        target_path="src/drift",
+    )
     return analysis.findings
 
 
