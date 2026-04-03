@@ -129,7 +129,11 @@ def _build_config_dict(profile_name: str) -> dict:
         "**/.pixi/**",
         "**/*.egg-info/**",
         "**/docs/**",
+        "**/docs_src/**",
         "**/examples/**",
+        "**/tests/**",
+        "**/scripts/**",
+        "**/site/**",
     ]
 
     cfg["weights"] = dict(profile.weights)

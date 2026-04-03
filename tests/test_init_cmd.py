@@ -89,6 +89,22 @@ class TestInitCommand:
         data = yaml.safe_load((tmp_path / "drift.yaml").read_text())
         assert data["weights"]["mutant_duplicate"] == 0.13  # default weight
 
+    def test_init_default_excludes_non_operational_paths(self, tmp_path: Path) -> None:
+        """Generated config should not broaden scope vs baseline defaults."""
+        runner = CliRunner()
+        result = runner.invoke(main, ["init", "--repo", str(tmp_path)])
+        assert result.exit_code == 0
+
+        data = yaml.safe_load((tmp_path / "drift.yaml").read_text())
+        excludes = set(data["exclude"])
+
+        assert "**/docs/**" in excludes
+        assert "**/docs_src/**" in excludes
+        assert "**/examples/**" in excludes
+        assert "**/tests/**" in excludes
+        assert "**/scripts/**" in excludes
+        assert "**/site/**" in excludes
+
     def test_init_vibe_coding_profile(self, tmp_path: Path) -> None:
         runner = CliRunner()
         result = runner.invoke(
