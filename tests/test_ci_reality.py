@@ -271,7 +271,12 @@ class TestExitCodeContract:
         from drift.scoring.engine import severity_gate_pass
 
         config = _standard_config()
-        analysis = analyze_repo(DRIFT_REPO, config=config, since_days=90)
+        analysis = analyze_repo(
+            DRIFT_REPO,
+            config=config,
+            since_days=90,
+            target_path="src/drift",
+        )
 
         # drift itself should pass on "critical" gate
         assert severity_gate_pass(analysis.findings, "critical"), (
