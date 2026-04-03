@@ -12,6 +12,20 @@
   "survived": 3,
   "errors": 0,
   "mutation_score_pct": 87.0,
+  "known_survivors": {
+    "avs_001": {
+      "status": "KNOWN_SURVIVOR_EMBEDDING",
+      "reason": "Embedding similarity threshold mutation requires EmbeddingService with real vector fixtures to detect"
+    },
+    "avs_002": {
+      "status": "KNOWN_SURVIVOR_EMBEDDING",
+      "reason": "Hub percentile mutation requires populated dependency graph with centrality distribution"
+    },
+    "avs_004": {
+      "status": "KNOWN_SURVIVOR_EMBEDDING",
+      "reason": "AND/OR flip in hub condition requires graph fixtures with both centrality and degree data"
+    }
+  },
   "per_signal": {
     "PFS": {
       "killed": 5,
@@ -95,7 +109,8 @@
       "description": "Embedding similarity threshold 0.5 -> 0.99 (disable embedding match)",
       "outcome": "survived",
       "duration_s": 7.5,
-      "detail": "All tests passed \u2014 mutation NOT caught"
+      "detail": "All tests passed \u2014 mutation NOT caught",
+      "survivor_reason": "KNOWN_SURVIVOR_EMBEDDING"
     },
     {
       "id": "avs_002",
@@ -103,7 +118,8 @@
       "description": "Hub percentile 0.90 -> 0.50 (too many hubs dampened)",
       "outcome": "survived",
       "duration_s": 7.5,
-      "detail": "All tests passed \u2014 mutation NOT caught"
+      "detail": "All tests passed \u2014 mutation NOT caught",
+      "survivor_reason": "KNOWN_SURVIVOR_EMBEDDING"
     },
     {
       "id": "avs_003",
@@ -119,7 +135,8 @@
       "description": "Flip AND to OR in hub condition",
       "outcome": "survived",
       "duration_s": 7.5,
-      "detail": "All tests passed \u2014 mutation NOT caught"
+      "detail": "All tests passed \u2014 mutation NOT caught",
+      "survivor_reason": "KNOWN_SURVIVOR_EMBEDDING"
     },
     {
       "id": "mds_004",

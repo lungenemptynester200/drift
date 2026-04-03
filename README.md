@@ -317,6 +317,14 @@ Further reading:
 - [Full Study](docs/STUDY.md)
 - [Case Studies](docs-site/case-studies/index.md)
 
+## Test quality
+
+- **1 645 tests**, 0 regressions
+- **Mutation kill rate: 87 %** (20/23 mutants killed)
+  - PFS, MDS, EDS, GCD: 100 % kill rate
+  - AVS: 25 % (3 embedding/graph-dependent survivors — known limitation)
+- Baseline: [`benchmark_results/mutation_baseline.json`](benchmark_results/mutation_baseline.json)
+
 ## Release status
 
 The PyPI classifier is `Development Status :: 4 - Beta`.
