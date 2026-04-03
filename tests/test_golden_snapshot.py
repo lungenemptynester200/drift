@@ -32,6 +32,7 @@ _VOLATILE_KEYS = frozenset({
     "analyzed_at",
     "version",
     "analysis_duration_seconds",
+    "repo",  # absolute workspace path differs between local and CI runners
     "trend",  # accumulates history across runs — non-deterministic
 })
 

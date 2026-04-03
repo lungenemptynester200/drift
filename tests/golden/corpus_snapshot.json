@@ -3838,7 +3838,6 @@
       "source_signal": "mutant_duplicate"
     }
   ],
-  "repo": "C:/Users/mickg/PWBS/drift/benchmarks/corpus",
   "schema_version": "1.0",
   "severity": "medium",
   "summary": {
