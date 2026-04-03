@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -76,9 +77,14 @@ def _strip_volatile_sarif(obj: object) -> object:
 
 def _run_corpus_analysis() -> tuple[str, str]:
     """Analyze the benchmark corpus and return (json_str, sarif_str)."""
+    cache_dir = CORPUS_DIR / ".drift-cache-golden"
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
+
     config = DriftConfig(
         include=["**/*.py"],
         exclude=["**/__pycache__/**"],
+        cache_dir=str(cache_dir),
         embeddings_enabled=False,
     )
     analysis = analyze_repo(CORPUS_DIR, config=config, since_days=0)
