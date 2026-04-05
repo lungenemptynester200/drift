@@ -1,9 +1,0 @@
-{
-  "servers": {
-    "drift": {
-      "type": "stdio",
-      "command": "C:\\Users\\mickg\\PWBS\\drift\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "drift", "mcp", "--serve"]
-    }
-  }
-}
